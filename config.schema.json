@@ -1,0 +1,35 @@
+{
+  "pluginAlias": "HomePodMiniMusicSensor",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "HomePod Mini Music Sensor",
+        "required": true
+      },
+      "homepods": {
+        "title": "HomePods",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Display Name",
+              "type": "string",
+              "required": true
+            },
+            "id": {
+              "title": "Device ID",
+              "type": "string",
+              "required": true
+            }
+          }
+        }
+      }
+    }
+  }
+}
