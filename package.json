@@ -1,8 +1,15 @@
 {
   "name": "homebridge-homepod-mini-music-sensor",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "HomePod mini music sensor for Homebridge - Trigger HomeKit automations based on music playback",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "config.schema.json",
+    "get_nowplaying.py",
+    "LICENSE",
+    "README.md"
+  ],
   "keywords": [
     "homebridge-plugin",
     "homepod",
