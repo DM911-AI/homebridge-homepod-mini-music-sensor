@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod-2-and-Mini-feature-1.jpg" alt="HomePod & HomePod mini" width="600">
+<img src="file:///Users/danielmazuz/Downloads/HomePod-2-and-Mini-feature-1.jpg" alt="HomePod & HomePod mini" width="600">
 
 # 🎵 homebridge-homepod-mini-music-sensor
 
