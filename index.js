@@ -16,9 +16,18 @@ class HomePodPlatform {
     this.api = api;
     this.accessories = [];
 
+    // Default config values
+    this.detectMusic = config.detectMusic !== false; // default true
+    this.detectPodcasts = config.detectPodcasts || false;
+    this.detectMovies = config.detectMovies || false;
+    this.maxDuration = config.maxDuration || 600;
+    this.requireArtist = config.requireArtist !== false; // default true
+    this.updateInterval = (config.updateInterval || 5) * 1000; // convert to ms
+
     if (api) {
       this.api.on('didFinishLaunching', () => {
         this.log('HomePod Mini Music Sensor Platform finished launching');
+        this.log(`Detection: Music=${this.detectMusic}, Podcasts=${this.detectPodcasts}, Movies=${this.detectMovies}`);
         this.discoverDevices();
       });
     }
@@ -65,14 +74,24 @@ class HomePodAccessory {
 
     this.updateInterval = setInterval(() => {
       this.updateStatus();
-    }, 5000);
+    }, platform.updateInterval);
 
     this.updateStatus();
   }
 
   updateStatus() {
     const scriptPath = path.join(__dirname, 'get_nowplaying.py');
-    const command = `python3.13 ${scriptPath} ${this.config.id}`;
+    
+    // Pass config to Python script
+    const filterConfig = JSON.stringify({
+      detectMusic: this.platform.detectMusic,
+      detectPodcasts: this.platform.detectPodcasts,
+      detectMovies: this.platform.detectMovies,
+      maxDuration: this.platform.maxDuration,
+      requireArtist: this.platform.requireArtist
+    });
+    
+    const command = `python3.13 ${scriptPath} ${this.config.id} '${filterConfig}'`;
 
     exec(command, (error, stdout, stderr) => {
       if (error) {

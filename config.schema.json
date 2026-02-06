@@ -6,10 +6,49 @@
     "type": "object",
     "properties": {
       "name": {
-        "title": "Name",
+        "title": "Platform Name",
         "type": "string",
         "default": "HomePod Mini Music Sensor",
         "required": true
+      },
+      "detectMusic": {
+        "title": "Detect Music",
+        "type": "boolean",
+        "default": true,
+        "description": "Trigger sensor when music is playing (Apple Music, Spotify, etc.)"
+      },
+      "detectPodcasts": {
+        "title": "Detect Podcasts",
+        "type": "boolean",
+        "default": false,
+        "description": "Trigger sensor when podcasts are playing"
+      },
+      "detectMovies": {
+        "title": "Detect Movies/TV",
+        "type": "boolean",
+        "default": false,
+        "description": "Trigger sensor when movies or TV shows are playing (AirPlay)"
+      },
+      "maxDuration": {
+        "title": "Max Duration (seconds)",
+        "type": "number",
+        "default": 600,
+        "minimum": 60,
+        "description": "Maximum content duration to detect (default: 600 = 10 minutes). Content longer than this will be ignored unless 'Detect Podcasts' is enabled."
+      },
+      "requireArtist": {
+        "title": "Require Artist Field",
+        "type": "boolean",
+        "default": true,
+        "description": "Only trigger if content has an artist field (helps filter out movies/TV)"
+      },
+      "updateInterval": {
+        "title": "Update Interval (seconds)",
+        "type": "number",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 60,
+        "description": "How often to check playback status (default: 5 seconds)"
       },
       "homepods": {
         "title": "HomePods",
@@ -20,16 +59,48 @@
             "name": {
               "title": "Display Name",
               "type": "string",
-              "required": true
+              "required": true,
+              "placeholder": "Bedroom"
             },
             "id": {
               "title": "Device ID",
               "type": "string",
-              "required": true
+              "required": true,
+              "placeholder": "A294FB11E039"
             }
           }
         }
       }
     }
-  }
+  },
+  "layout": [
+    {
+      "type": "section",
+      "title": "Detection Settings",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        "detectMusic",
+        "detectPodcasts",
+        "detectMovies",
+        "maxDuration",
+        "requireArtist",
+        "updateInterval"
+      ]
+    },
+    {
+      "type": "section",
+      "title": "HomePods",
+      "items": [
+        {
+          "key": "homepods",
+          "type": "array",
+          "items": [
+            "homepods[].name",
+            "homepods[].id"
+          ]
+        }
+      ]
+    }
+  ]
 }
