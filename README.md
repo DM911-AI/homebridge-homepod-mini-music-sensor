@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/homepod-mini-select-white-202110_FV1?wid=940&hei=1112&fmt=png-alpha&.v=1633086025000" alt="HomePod mini" width="300">
+<img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod-2-and-Mini-feature-1.jpg" alt="HomePod & HomePod mini" width="600">
 
 # 🎵 homebridge-homepod-mini-music-sensor
 
@@ -13,7 +13,7 @@
 [![HomePod](https://img.shields.io/badge/HomePod-Compatible-blue)](https://www.apple.com/homepod-mini/)
 [![HomeKit](https://img.shields.io/badge/HomeKit-Compatible-orange)](https://www.apple.com/home-app/)
 [![Homebridge](https://img.shields.io/badge/Homebridge-Plugin-purple)](https://homebridge.io)
-[![License](https://img.shields.io/badge/License-MIT-green)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 **[📦 npm](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)** • **[💻 GitHub](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)** • **[🐛 Issues](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues)** • **[👤 Author](https://github.com/DM911-AI)**
 
@@ -23,10 +23,10 @@
 
 ## ✨ Features
 
-- 🎵 **Configurable Detection** - Choose: music, podcasts, movies, or all
-- 📱 **Motion Sensor** - Appears as motion sensor in HomeKit
-- 🏠 **Multi-HomePod** - Separate sensor per HomePod
-- 🔄 **Customizable** - Update interval 1-60 seconds
+- 🎵 **Configurable Detection** - Choose: music, podcasts, movies
+- 📱 **Motion Sensor** - HomeKit motion sensor
+- 🏠 **Multi-HomePod** - Separate sensor per device
+- 🔄 **Customizable** - Update interval 1-60s
 - 🚫 **No Auth** - Works without pairing
 - ⚡ **Smart Filtering** - Duration & artist filters
 
@@ -46,65 +46,28 @@ pip3.13 install pyatv --break-system-packages
 
 Search **"HomePod Mini Music Sensor"** → Install
 
-**Via Terminal:**
-```bash
-npm install -g homebridge-homepod-mini-music-sensor
-```
-
 ---
 
-## ⚙️ Configuration (Easy!)
+## ⚙️ Easy Configuration
 
 ### Via Homebridge UI (No coding!)
 
-1. **Find HomePod IDs:**
-```bash
-   python3.13 -m pyatv.scripts.atvremote scan
-```
-   Copy identifiers without colons: `A2:94:FB:11:E0:39` → `A294FB11E039`
-
-2. **Configure in UI:**
-   - Plugins → HomePod Mini Music Sensor → ⚙️ Settings
-   - Add HomePods (name + ID)
-   - Optional: Customize detection settings
-   - Save & Restart
+1. Find HomePod IDs: `python3.13 -m pyatv.scripts.atvremote scan`
+2. Plugins → HomePod Mini Music Sensor → ⚙️ Settings
+3. Add HomePods (name + ID)
+4. Save & Restart
 
 Done! 🎉
-
-<details>
-<summary>📝 Manual config.json (click to expand)</summary>
-```json
-{
-  "platforms": [
-    {
-      "platform": "HomePodMiniMusicSensor",
-      "name": "HomePod Mini Music Sensor",
-      "detectMusic": true,
-      "detectPodcasts": false,
-      "detectMovies": false,
-      "maxDuration": 600,
-      "updateInterval": 5,
-      "homepods": [
-        {"name": "Bedroom", "id": "A294FB11E039"}
-      ]
-    }
-  ]
-}
-```
-
-</details>
 
 ---
 
 ## 🎯 HomeKit Automations
 
-Motion Detected = Playing | No Motion = Idle
+**Motion Detected** = Playing | **No Motion** = Idle
 
-### Examples
-
-💡 **Mood Lighting:** Bedroom plays → dim lights  
-🎵 **Multi-room:** Kitchen plays → pause Living Room  
-🌙 **Sleep:** Bedroom stops → lights off
+💡 Bedroom plays → dim lights  
+🎵 Kitchen plays → pause Living Room  
+🌙 Bedroom stops → lights off
 
 ---
 
@@ -131,8 +94,8 @@ Motion Detected = Playing | No Motion = Idle
 <details>
 <summary>Always "No Motion"?</summary>
 
-- Check content is playing
-- Verify detection settings
+- Content is playing (not paused)
+- Check detection settings
 - Test: `python3.13 get_nowplaying.py YOUR_ID`
 </details>
 
@@ -141,12 +104,6 @@ Motion Detected = Playing | No Motion = Idle
 ## 📱 Supported
 
 ✅ HomePod mini | ✅ HomePod (1st/2nd gen) | 🔜 Apple TV
-
----
-
-## 🤝 Contributing
-
-PRs welcome! Fork → Branch → Commit → Push → PR
 
 ---
 
