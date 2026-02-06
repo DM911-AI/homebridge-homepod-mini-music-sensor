@@ -2,6 +2,7 @@
   "pluginAlias": "HomePodMiniMusicSensor",
   "pluginType": "platform",
   "singular": true,
+  "brandingImage": "assets/icon-256.png",
   "schema": {
     "type": "object",
     "properties": {

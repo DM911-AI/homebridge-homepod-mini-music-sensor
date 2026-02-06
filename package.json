@@ -7,6 +7,7 @@
     "index.js",
     "config.schema.json",
     "get_nowplaying.py",
+    "assets",
     "LICENSE",
     "README.md"
   ],
