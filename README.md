@@ -1,191 +1,176 @@
-# homebridge-homepod-mini-music-sensor
+<div align="center">
 
-[![npm version](https://badge.fury.io/js/homebridge-homepod-mini-music-sensor.svg)](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)
-[![npm downloads](https://img.shields.io/npm/dt/homebridge-homepod-mini-music-sensor.svg)](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)
+<img src="https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/homepod-mini-select-white-202110_FV1?wid=940&hei=1112&fmt=png-alpha&.v=1633086025000" alt="HomePod mini" width="300">
 
-🎵 **Monitor what's currently playing on your HomePod mini devices in HomeKit!**
+# 🎵 homebridge-homepod-mini-music-sensor
 
-Transform your HomePod mini into a smart music sensor that triggers HomeKit automations.
+### Transform your HomePod mini into a smart music sensor for HomeKit
 
-![HomePod mini Music Sensor](https://img.shields.io/badge/HomeKit-Compatible-blue)
-![Platform](https://img.shields.io/badge/platform-Homebridge-orange)
+[![npm version](https://img.shields.io/npm/v/homebridge-homepod-mini-music-sensor)](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)
+[![npm downloads](https://img.shields.io/npm/dt/homebridge-homepod-mini-music-sensor)](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)
+[![GitHub stars](https://img.shields.io/github/stars/DM911-AI/homebridge-homepod-mini-music-sensor?style=social)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)
+
+[![HomePod](https://img.shields.io/badge/HomePod-Compatible-blue)](https://www.apple.com/homepod-mini/)
+[![HomeKit](https://img.shields.io/badge/HomeKit-Compatible-orange)](https://www.apple.com/home-app/)
+[![Homebridge](https://img.shields.io/badge/Homebridge-Plugin-purple)](https://homebridge.io)
+[![License](https://img.shields.io/badge/License-MIT-green)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/blob/main/LICENSE)
+
+**[📦 npm](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)** • **[💻 GitHub](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)** • **[🐛 Issues](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues)** • **[👤 Author](https://github.com/DM911-AI)**
+
+</div>
+
+---
 
 ## ✨ Features
 
-- 🎵 **Music-only detection** - Only triggers for music (filters out movies, podcasts, audiobooks)
-- 📱 **Motion sensor** - Appears as a motion sensor in HomeKit
-- 🏠 **Multi-HomePod support** - Separate sensor for each HomePod
-- 🔄 **Real-time updates** - Status updates every 5 seconds
-- 🚫 **No authentication** - Works with HomePod mini without pairing
-- ⚡ **Smart filtering** - Automatically excludes content longer than 10 minutes
+- 🎵 **Configurable Detection** - Choose: music, podcasts, movies, or all
+- 📱 **Motion Sensor** - Appears as motion sensor in HomeKit
+- 🏠 **Multi-HomePod** - Separate sensor per HomePod
+- 🔄 **Customizable** - Update interval 1-60 seconds
+- 🚫 **No Auth** - Works without pairing
+- ⚡ **Smart Filtering** - Duration & artist filters
 
-## 📋 Requirements
-
-- Homebridge v1.3.0 or higher
-- Node.js v14.0.0 or higher
-- Python 3.13
-- pyatv library
+---
 
 ## 🚀 Quick Start
 
-### 1. Install Python 3.13
+### 1. Install Dependencies
 ```bash
 brew install python@3.13
-```
-
-### 2. Install pyatv
-```bash
 pip3.13 install pyatv --break-system-packages
 ```
 
-### 3. Install Plugin
+### 2. Install Plugin
 
-**Via Homebridge UI (Recommended):**
+**Via Homebridge UI (Easiest):**
 
-Search for **"HomePod Mini Music Sensor"** in the Plugins tab
+Search **"HomePod Mini Music Sensor"** → Install
 
 **Via Terminal:**
 ```bash
 npm install -g homebridge-homepod-mini-music-sensor
 ```
 
-## ⚙️ Configuration
+---
 
-### Finding Your HomePod IDs
+## ⚙️ Configuration (Easy!)
+
+### Via Homebridge UI (No coding!)
+
+1. **Find HomePod IDs:**
 ```bash
-python3.13 -m pyatv.scripts.atvremote scan
+   python3.13 -m pyatv.scripts.atvremote scan
 ```
+   Copy identifiers without colons: `A2:94:FB:11:E0:39` → `A294FB11E039`
 
-Look for `Identifiers` and use the format without colons:
-- Example: `A2:94:FB:11:E0:39` → `A294FB11E039`
+2. **Configure in UI:**
+   - Plugins → HomePod Mini Music Sensor → ⚙️ Settings
+   - Add HomePods (name + ID)
+   - Optional: Customize detection settings
+   - Save & Restart
 
-### Config Example
+Done! 🎉
+
+<details>
+<summary>📝 Manual config.json (click to expand)</summary>
 ```json
 {
   "platforms": [
     {
       "platform": "HomePodMiniMusicSensor",
       "name": "HomePod Mini Music Sensor",
+      "detectMusic": true,
+      "detectPodcasts": false,
+      "detectMovies": false,
+      "maxDuration": 600,
+      "updateInterval": 5,
       "homepods": [
-        {
-          "name": "Bedroom",
-          "id": "A294FB11E039"
-        },
-        {
-          "name": "Living Room",
-          "id": "222670F59044"
-        },
-        {
-          "name": "Kitchen",
-          "id": "F2E8AA6E8D9C"
-        }
+        {"name": "Bedroom", "id": "A294FB11E039"}
       ]
     }
   ]
 }
 ```
 
+</details>
+
+---
+
 ## 🎯 HomeKit Automations
 
-Each HomePod appears as a **Motion Sensor**:
-- ✅ Motion = Music playing
-- ❌ No Motion = Idle
+Motion Detected = Playing | No Motion = Idle
 
-### Example Automations
+### Examples
 
-**Mood Lighting:**
-```
-When "Bedroom" detects motion
-→ Set bedroom lights to 30%, warm white
-```
+💡 **Mood Lighting:** Bedroom plays → dim lights  
+🎵 **Multi-room:** Kitchen plays → pause Living Room  
+🌙 **Sleep:** Bedroom stops → lights off
 
-**Multi-room Audio:**
-```
-When "Kitchen" detects motion
-→ Pause "Living Room" HomePod
-```
+---
 
-**Sleep Mode:**
-```
-When "Bedroom" stops detecting motion (no music)
-→ Turn off all lights, lock doors
-```
+## 🎭 Detection
 
-## 🎭 What Gets Detected?
+| Type | Default | Configurable |
+|------|---------|--------------|
+| 🎵 Music | ✅ | Yes |
+| 🎙️ Podcasts | ❌ | Yes |
+| 🎬 Movies | ❌ | Yes |
 
-| Content Type | Detected? | Reason |
-|-------------|-----------|---------|
-| 🎵 Music (Apple Music, Spotify) | ✅ Yes | Music type |
-| 🎙️ Podcasts | ❌ No | Filtered (>10 min) |
-| 📚 Audiobooks | ❌ No | Filtered (>10 min) |
-| 🎬 Movies/TV | ❌ No | Not music type |
-| 🗣️ Siri responses | ❌ No | Not music type |
+---
 
 ## 🔧 Troubleshooting
 
-### HomePods not appearing?
-1. Verify IDs: `python3.13 -m pyatv.scripts.atvremote scan`
-2. Check same network as Homebridge
-3. Restart Homebridge
+<details>
+<summary>HomePods not appearing?</summary>
 
-### Always showing "No Motion"?
-1. Ensure music is **playing** (not paused)
-2. Test manually: `python3.13 get_nowplaying.py YOUR_ID`
-3. Check logs: `journalctl -u homebridge -f`
+- Verify IDs correct
+- Same network as Homebridge
+- Restart Homebridge
+</details>
 
-### Python/pyatv errors?
-```bash
-# Verify Python
-python3.13 --version
+<details>
+<summary>Always "No Motion"?</summary>
 
-# Reinstall pyatv
-pip3.13 install --upgrade pyatv --break-system-packages
-```
+- Check content is playing
+- Verify detection settings
+- Test: `python3.13 get_nowplaying.py YOUR_ID`
+</details>
 
-## 📱 Supported Devices
+---
 
-- ✅ HomePod mini
-- ✅ HomePod (1st gen)
-- ✅ HomePod (2nd gen)
-- ❌ Apple TV (future update)
+## 📱 Supported
 
-## 🗺️ Roadmap
+✅ HomePod mini | ✅ HomePod (1st/2nd gen) | 🔜 Apple TV
 
-- [ ] Apple TV support (requires pairing)
-- [ ] Configurable update interval
-- [ ] Custom duration filter
-- [ ] Song metadata display (Eve app)
-- [ ] Stereo pair support
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+PRs welcome! Fork → Branch → Commit → Push → PR
 
-## 📜 License
+---
 
-MIT License - see [LICENSE](LICENSE) file for details
-
-## 👏 Credits
-
-Powered by [pyatv](https://pyatv.dev/) - an amazing Python library for controlling Apple TV and HomePod devices.
+<div align="center">
 
 ## 👤 Author
 
 **Daniel Mazuz**
 
-- GitHub: [@DM911-AI](https://github.com/DM911-AI)
-- npm: [@dm911vz](https://www.npmjs.com/~dm911vz)
+[![GitHub](https://img.shields.io/badge/GitHub-DM911--AI-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/DM911-AI)
+[![npm](https://img.shields.io/badge/npm-dm911vz-CB3837?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/~dm911vz)
 
 ---
 
-## ⭐ Support
-
-If you find this plugin useful, please:
-- ⭐ Star this repository
-- 🐛 Report issues
-- 💡 Suggest new features
-- 📢 Share with friends
+**[📦 npm](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)** • **[💻 GitHub](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)** • **[🐛 Issues](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues)**
 
 ---
 
-💙 **Enjoying this plugin? Star it on GitHub and share with the community!**
+⭐ **Star on GitHub** if you find this useful!
+
+[![GitHub stars](https://img.shields.io/github/stars/DM911-AI/homebridge-homepod-mini-music-sensor?style=social)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)
+
+**Made with ❤️ for Homebridge**
+
+Powered by [pyatv](https://pyatv.dev/) | MIT License
+
+</div>
