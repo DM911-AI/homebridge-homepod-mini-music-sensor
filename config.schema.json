@@ -2,7 +2,8 @@
   "pluginAlias": "HomePodMiniMusicSensor",
   "pluginType": "platform",
   "singular": true,
-  "brandingImage": "assets/icon-256.png",
+  "headerDisplay": "<p align='center'><img src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod-2-and-Mini-feature-1.jpg' width='600px'></p>",
+  "footerDisplay": "For help and examples, see the [GitHub README](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor#readme)",
   "schema": {
     "type": "object",
     "properties": {
@@ -67,7 +68,8 @@
               "title": "Device ID",
               "type": "string",
               "required": true,
-              "placeholder": "A294FB11E039"
+              "placeholder": "A294FB11E039",
+              "description": "Find using: python3.13 -m pyatv.scripts.atvremote scan"
             }
           }
         }
@@ -76,32 +78,49 @@
   },
   "layout": [
     {
+      "type": "help",
+      "helpvalue": "<h5>🎵 HomePod Mini Music Sensor</h5><p>Transform your HomePod mini into a smart HomeKit sensor!</p>"
+    },
+    {
       "type": "section",
-      "title": "Detection Settings",
+      "title": "🎛️ Detection Settings",
       "expandable": true,
       "expanded": false,
       "items": [
         "detectMusic",
         "detectPodcasts",
         "detectMovies",
-        "maxDuration",
+        {
+          "key": "maxDuration",
+          "type": "number"
+        },
         "requireArtist",
-        "updateInterval"
+        {
+          "key": "updateInterval",
+          "type": "number"
+        }
       ]
     },
     {
       "type": "section",
-      "title": "HomePods",
+      "title": "🏠 HomePods",
+      "expandable": true,
+      "expanded": true,
       "items": [
         {
           "key": "homepods",
           "type": "array",
+          "buttonText": "Add HomePod",
           "items": [
             "homepods[].name",
             "homepods[].id"
           ]
         }
       ]
+    },
+    {
+      "type": "help",
+      "helpvalue": "<p><strong>📋 How to find HomePod IDs:</strong></p><ol><li>Open Terminal</li><li>Run: <code>python3.13 -m pyatv.scripts.atvremote scan</code></li><li>Copy the identifier (remove colons)</li><li>Example: A2:94:FB:11:E0:39 → A294FB11E039</li></ol>"
     }
   ]
 }
