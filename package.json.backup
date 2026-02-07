@@ -7,10 +7,9 @@
     "index.js",
     "config.schema.json",
     "get_nowplaying.py",
+    "assets",
     "LICENSE",
-    "README.md",
-    "homebridge-ui",
-    "branding-logo.png"
+    "README.md"
   ],
   "keywords": [
     "homebridge-plugin",
