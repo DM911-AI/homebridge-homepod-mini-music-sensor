@@ -2,7 +2,7 @@
   "pluginAlias": "HomePodMiniMusicSensor",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "<p align='center'><img src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg' width='100%' style='max-width: 600px;'></p><p align='center'><strong>🎵 Transform your HomePod mini into a smart music sensor for HomeKit</strong></p>",
+  "headerDisplay": "<p align='center'><img src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/hero-image.jpg' width='100%' style='max-width: 600px;'></p><p align='center'><strong>🎵 Transform your HomePod mini into a smart music sensor for HomeKit</strong></p>",
   "footerDisplay": "<p align='center'>For detailed documentation, see the <a href='https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor#readme' target='_blank'>GitHub README</a></p><p align='center'>⭐ Star on <a href='https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor' target='_blank'>GitHub</a> if you find this useful!</p>",
   "schema": {
     "type": "object",
