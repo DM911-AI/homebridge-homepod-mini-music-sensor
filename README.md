@@ -104,65 +104,88 @@ npm install -g homebridge-homepod-mini-music-sensor
 
 ## ⚙️ Configuration
 
-### Easy Configuration via Homebridge UI
+### 🎨 Visual Configuration Guide
 
-This is the easiest way to configure the plugin - no coding required!
+This plugin is designed to be configured entirely through the **Homebridge UI** - no manual JSON editing required!
+
+#### Step 1: Open Plugin Settings
+
+After installing the plugin, click the **⚙️ Settings** button in the Homebridge UI.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/HomePod_2.jpg" alt="Configuration" width="500">
+  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/Screenshot%202026-02-07%20at%2016.15.16.png" alt="Plugin Configuration Main Screen" width="800">
 </p>
 
-#### Step 1: Find Your HomePod IDs
+You'll see:
+- 🎵 **Hero Image** - Beautiful HomePod visual at the top
+- 🎛️ **Detection Settings** - Collapsible section for customizing what gets detected
+- 🏠 **Your HomePods** - Section to add your HomePod devices
 
-Open Terminal and run:
-```bash
-python3 -m pyatv.scripts.atvremote scan
-```
+---
 
-Example output:
-```
-Name: Bedroom
-Model/SW: HomePod Mini, tvOS 26.2
-Address: 10.100.102.9
-Identifiers:
- - A2:94:FB:11:E0:39
- - A294FB11E039
-```
+#### Step 2: Configure Detection Settings (Optional)
 
-**Copy the identifier WITHOUT colons:** `A294FB11E039`
+Expand the **🎛️ Detection Settings** section to customize what triggers your sensors:
 
-#### Step 2: Configure in Homebridge UI
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/Screenshot%202026-02-07%20at%2016.15.43.png" alt="Detection Settings" width="800">
+</p>
 
-1. Go to **Plugins** → Find **"HomePod Mini Music Sensor"**
-2. Click **⚙️ Settings**
-3. You'll see the configuration form with the HomePod hero image
-4. Expand **"🏠 Your HomePods"** section
-5. Click **"➕ Add HomePod"**
-6. Enter:
-   - **Display Name:** `Bedroom` (or your HomePod's name)
-   - **Device ID:** `A294FB11E039` (the ID from step 1)
-7. Repeat for each HomePod
-8. (Optional) Expand **"🎛️ Detection Settings"** to customize
-9. Click **Save**
-10. **Restart Homebridge**
+**Available Options:**
 
-**That's it!** Your HomePods will now appear as motion sensors in HomeKit.
+- ✅ **🎵 Detect Music** (Default: ON) - Trigger when music plays
+- ☐ **🎙️ Detect Podcasts** (Default: OFF) - Trigger for podcasts/audiobooks
+- ☐ **🎬 Detect Movies/TV** (Default: OFF) - Trigger for AirPlay video
+- ⏱️ **Max Duration** (Default: 600 seconds) - Filter by content length
+- ✅ **🎤 Require Artist Field** (Default: ON) - Filter out content without artist metadata
+- 🔄 **Update Interval** (Default: 5 seconds) - How often to check status
 
-### Advanced Configuration
+**💡 Detection Tips:**
+- **Music Only:** Keep defaults (Music: ON, Podcasts: OFF, Movies: OFF)
+- **Music + Podcasts:** Enable both + increase Max Duration to 3600 (60 min)
+- **Everything:** Enable all + disable 'Require Artist Field'
 
-#### Detection Settings Explained
+---
 
-- 🎵 **Detect Music** (Default: ON)
-- 🎙️ **Detect Podcasts** (Default: OFF)
-- 🎬 **Detect Movies/TV** (Default: OFF)
-- ⏱️ **Max Duration** (Default: 600 seconds / 10 minutes)
-- 🎤 **Require Artist Field** (Default: ON)
-- 🔄 **Update Interval** (Default: 5 seconds)
+#### Step 3: Add Your HomePods
 
-#### Manual Configuration (config.json)
+Expand the **🏠 Your HomePods** section and click **➕ Add HomePod**:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/Screenshot%202026-02-07%20at%2016.20.21.png" alt="Add HomePod Configuration" width="800">
+</p>
+
+**For each HomePod:**
+
+1. **Display Name** - Enter a friendly name (e.g., "Bedroom", "Kitchen")
+2. **Device ID** - Enter the HomePod identifier (see instructions below)
+
+**📋 How to Find HomePod IDs:**
+
+1. Open **Terminal**
+2. Run: `python3 -m pyatv.scripts.atvremote scan`
+3. Find your HomePod in the list
+4. Copy the **Identifier** (remove colons/dashes)
+5. Example: `A2:94:FB:11:E0:39` → `A294FB11E039`
+
+**💡 Tip:** Each HomePod will appear as a separate Motion Sensor in HomeKit
+
+---
+
+#### Step 4: Save and Restart
+
+1. Click **SAVE** button (bottom right)
+2. **Restart Homebridge**
+3. Your HomePods will now appear as motion sensors in the Home app! 🎉
+
+---
+
+### Manual Configuration (config.json)
 
 <details>
 <summary>Click to view manual configuration options</summary>
+
+If you prefer to edit `config.json` manually:
 ```json
 {
   "platform": "HomePodMiniMusicSensor",
