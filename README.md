@@ -2,16 +2,29 @@
 
 **Transform your HomePod mini into a smart music sensor for HomeKit**
 
-[![npm version](https://badge.fury.io/js/homebridge-homepod-mini-music-sensor.svg)](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)
-[![npm downloads](https://img.shields.io/npm/dt/homebridge-homepod-mini-music-sensor.svg)](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor)
-[![GitHub stars](https://img.shields.io/github/stars/DM911-AI/homebridge-homepod-mini-music-sensor.svg)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/hero-image.jpg" alt="HomePod" width="600">
+</p>
 
-[![HomePod](https://img.shields.io/badge/HomePod-mini-purple.svg)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)
-[![HomeKit](https://img.shields.io/badge/HomeKit-Compatible-blue.svg)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)
-[![Homebridge](https://img.shields.io/badge/Homebridge-Plugin-orange.svg)](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+<p align="center">
+  <a href="https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor"><img src="https://badge.fury.io/js/homebridge-homepod-mini-music-sensor.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor"><img src="https://img.shields.io/npm/dt/homebridge-homepod-mini-music-sensor.svg" alt="npm downloads"></a>
+  <a href="https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor"><img src="https://img.shields.io/github/stars/DM911-AI/homebridge-homepod-mini-music-sensor.svg" alt="GitHub stars"></a>
+</p>
 
-[📦 npm](https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor) • [💻 GitHub](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor) • [🐛 Issues](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues) • [👤 Author](https://github.com/DM911-AI)
+<p align="center">
+  <img src="https://img.shields.io/badge/HomePod-mini-purple.svg" alt="HomePod">
+  <img src="https://img.shields.io/badge/HomeKit-Compatible-blue.svg" alt="HomeKit">
+  <img src="https://img.shields.io/badge/Homebridge-Plugin-orange.svg" alt="Homebridge">
+  <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/homebridge-homepod-mini-music-sensor">📦 npm</a> • 
+  <a href="https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor">💻 GitHub</a> • 
+  <a href="https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues">🐛 Issues</a> • 
+  <a href="https://github.com/DM911-AI">👤 Author</a>
+</p>
 
 ---
 
@@ -94,6 +107,10 @@ npm install -g homebridge-homepod-mini-music-sensor
 ### Easy Configuration via Homebridge UI
 
 This is the easiest way to configure the plugin - no coding required!
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/HomePod_2.jpg" alt="Configuration" width="500">
+</p>
 
 #### Step 1: Find Your HomePod IDs
 
