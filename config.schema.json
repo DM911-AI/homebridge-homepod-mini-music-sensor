@@ -139,7 +139,7 @@
     },
     {
       "type": "help",
-      "helpvalue": "<hr><h5>📋 How to Find HomePod IDs:</h5><ol><li>Open <strong>Terminal</strong></li><li>Run: <code>python3.13 -m pyatv.scripts.atvremote scan</code></li><li>Find your HomePod in the list</li><li>Copy the <strong>Identifier</strong> (remove colons/dashes)</li><li>Example: <code>A2:94:FB:11:E0:39</code> → <code>A294FB11E039</code></li></ol><p><em>💡 Each HomePod will appear as a separate Motion Sensor in HomeKit</em></p>"
+      "helpvalue": "<hr><h5>📋 How to Find HomePod IDs:</h5><ol><li>Open <strong>Terminal</strong></li><li>Run: <code>python3 -m pyatv.scripts.atvremote scan</code></li><li>Find your HomePod in the list</li><li>Copy the <strong>Identifier</strong> (remove colons/dashes)</li><li>Example: <code>A2:94:FB:11:E0:39</code> → <code>A294FB11E039</code></li></ol><p><em>💡 Each HomePod will appear as a separate Motion Sensor in HomeKit</em></p>"
     }
   ]
 }
