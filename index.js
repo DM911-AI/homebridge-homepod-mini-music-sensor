@@ -11,6 +11,7 @@ class HomePodMusicSensorPlatform {
     this.config = config || {};
     this.api = api;
     this.accessories = [];
+    this.pollIntervals = new Map();
     this.scriptPath = path.join(__dirname, 'get_nowplaying.py');
 
     if (!config) {
@@ -137,16 +138,16 @@ class HomePodMusicSensorPlatform {
     accessory.context.name = name;
 
     // Clear any existing polling interval to prevent accumulation on re-setup
-    if (accessory.context.pollInterval) {
-      clearInterval(accessory.context.pollInterval);
+    if (this.pollIntervals.has(accessory.UUID)) {
+      clearInterval(this.pollIntervals.get(accessory.UUID));
     }
 
     this.updateStatus(accessory, motionService);
 
     const updateInterval = (this.config.updateInterval || 5) * 1000;
-    accessory.context.pollInterval = setInterval(() => {
+    this.pollIntervals.set(accessory.UUID, setInterval(() => {
       this.updateStatus(accessory, motionService);
-    }, updateInterval);
+    }, updateInterval));
   }
 
   updateStatus(accessory, motionService) {
