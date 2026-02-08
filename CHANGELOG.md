@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-02-08
+
+### Changed
+- Prepared plugin for Homebridge verified plugin submission
+- Removed deprecated `homepods` config from schema (legacy config still supported in code)
+- Removed emojis from config schema titles for cleaner UI
+- Changed "now playing" logs from `info` to `debug` level to reduce log noise
+- Bumped version to 1.4.5
+
+### Added
+- `displayName` field in package.json (required for verified plugins)
+- `AccessoryInformation` service on each accessory (Manufacturer, Model, SerialNumber, FirmwareRevision)
+- Proper shutdown handler to clear all polling intervals when Homebridge stops
+- Python script existence check on startup
+- `CHANGELOG.md` included in npm package
+- `assets/` directory included in npm package
+
+### Fixed
+- Hero image URL in config schema now points to correct path (`assets/HomePod_2.jpg`)
+- Plugin/platform name constants used consistently throughout codebase
+- Removed duplicate image files from project root (moved to `assets/`)
+- Removed stale files (`1.1.0`, `package.json.backup`)
+- Input trimming for device names to prevent whitespace issues
+- Minimum update interval enforced with `Math.max(1, ...)`
+
+### Improved
+- Code organization with `PLUGIN_NAME` and `PLATFORM_NAME` constants
+- `.gitignore` with comprehensive entries
+- Logging uses `%s` format strings consistently
+- Overall code quality and consistency for verified plugin standards
+
 ## [1.4.1] - 2025-02-07
 
 ### Changed
@@ -78,6 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.4.5]: https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/compare/v1.4.1...v1.4.5
 [1.4.1]: https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/compare/v1.3.0...v1.4.1
 [1.3.0]: https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/compare/v1.1.0...v1.2.0

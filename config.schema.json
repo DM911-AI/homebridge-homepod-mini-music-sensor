@@ -2,7 +2,7 @@
   "pluginAlias": "HomePodMusicSensor",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "<div align='center'><img src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/hero-image.jpg' width='100%' style='max-width: 800px; border-radius: 10px; margin: 20px 0;'></div>",
+  "headerDisplay": "<div align='center'><img src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg' width='100%' style='max-width: 800px; border-radius: 10px; margin: 20px 0;'></div>",
   "footerDisplay": "For help and documentation, visit the [GitHub repository](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)",
   "schema": {
     "type": "object",
@@ -14,25 +14,25 @@
         "required": true
       },
       "detectMusic": {
-        "title": "🎵 Detect Music",
+        "title": "Detect Music",
         "type": "boolean",
         "default": true,
         "description": "Trigger sensor when music is playing"
       },
       "detectPodcasts": {
-        "title": "🎙️ Detect Podcasts",
+        "title": "Detect Podcasts",
         "type": "boolean",
         "default": false,
         "description": "Trigger sensor when podcasts/audiobooks are playing"
       },
       "detectMovies": {
-        "title": "🎬 Detect Movies/TV",
+        "title": "Detect Movies/TV",
         "type": "boolean",
         "default": false,
         "description": "Trigger sensor when AirPlay video is playing"
       },
       "maxDuration": {
-        "title": "⏱️ Max Duration (seconds)",
+        "title": "Max Duration (seconds)",
         "type": "integer",
         "default": 600,
         "minimum": 60,
@@ -40,13 +40,13 @@
         "description": "Maximum duration of content to detect (filters out long podcasts/movies)"
       },
       "requireArtist": {
-        "title": "🎤 Require Artist Field",
+        "title": "Require Artist Field",
         "type": "boolean",
         "default": true,
         "description": "Only trigger for content with artist metadata (filters out movies/TV)"
       },
       "updateInterval": {
-        "title": "🔄 Update Interval (seconds)",
+        "title": "Update Interval (seconds)",
         "type": "integer",
         "default": 5,
         "minimum": 1,
@@ -54,7 +54,7 @@
         "description": "How often to check playback status"
       },
       "devices": {
-        "title": "🏠 Your HomePods",
+        "title": "HomePod Devices",
         "type": "array",
         "items": {
           "type": "object",
@@ -74,35 +74,10 @@
               "description": "HomePod identifier without colons/dashes. Run: python3 -m pyatv.scripts.atvremote scan"
             },
             "isStereoPair": {
-              "title": "🎵 Part of Stereo Pair",
+              "title": "Part of Stereo Pair",
               "type": "boolean",
               "default": false,
               "description": "Check this if this HomePod is part of a stereo pair. Both HomePods in the pair must have the SAME name and this box checked."
-            }
-          }
-        }
-      },
-      "homepods": {
-        "title": "🏠 Your HomePods (Legacy)",
-        "type": "array",
-        "description": "⚠️ This field is deprecated. Please use 'devices' instead with 'deviceId' field.",
-        "items": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "title": "Display Name",
-              "type": "string",
-              "required": true
-            },
-            "id": {
-              "title": "Device ID",
-              "type": "string",
-              "required": true
-            },
-            "isStereoPair": {
-              "title": "Part of Stereo Pair",
-              "type": "boolean",
-              "default": false
             }
           }
         }
@@ -112,7 +87,7 @@
   "layout": [
     {
       "type": "fieldset",
-      "title": "🎛️ Detection Settings",
+      "title": "Detection Settings",
       "expandable": true,
       "expanded": false,
       "items": [
@@ -127,8 +102,8 @@
     {
       "key": "devices",
       "type": "array",
-      "title": "🏠 Your HomePods",
-      "buttonText": "➕ Add HomePod",
+      "title": "HomePod Devices",
+      "buttonText": "Add HomePod",
       "items": [
         "devices[].name",
         "devices[].deviceId",

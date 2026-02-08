@@ -1,14 +1,17 @@
 {
   "name": "homebridge-homepod-mini-music-sensor",
-  "version": "1.4.4",
+  "displayName": "HomePod Music Sensor",
+  "version": "1.4.5",
   "description": "HomePod mini music sensor for Homebridge - Trigger HomeKit automations based on music playback",
   "main": "index.js",
   "files": [
     "index.js",
     "config.schema.json",
     "get_nowplaying.py",
+    "assets/",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "keywords": [
     "homebridge-plugin",
@@ -31,7 +34,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor.git"
+    "url": "git+https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor.git"
   },
   "bugs": {
     "url": "https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues"

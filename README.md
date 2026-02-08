@@ -3,7 +3,7 @@
 **Transform your HomePod mini into a smart music sensor for HomeKit**
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/hero-image.jpg" alt="HomePod" width="600">
+  <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg" alt="HomePod" width="600">
 </p>
 
 <p align="center">
@@ -188,7 +188,7 @@ Expand the **🏠 Your HomePods** section and click **➕ Add HomePod**:
 If you prefer to edit `config.json` manually:
 ```json
 {
-  "platform": "HomePodMiniMusicSensor",
+  "platform": "HomePodMusicSensor",
   "name": "HomePod Music Sensor",
   "detectMusic": true,
   "detectPodcasts": false,
@@ -196,14 +196,14 @@ If you prefer to edit `config.json` manually:
   "maxDuration": 600,
   "requireArtist": true,
   "updateInterval": 5,
-  "homepods": [
+  "devices": [
     {
       "name": "Bedroom",
-      "id": "A294FB11E039"
+      "deviceId": "A294FB11E039"
     },
     {
       "name": "Living Room",
-      "id": "F2E8AA6E8D9C"
+      "deviceId": "F2E8AA6E8D9C"
     }
   ]
 }
@@ -418,10 +418,9 @@ If you're still experiencing issues:
   - Display artist, album, artwork
   - Expected: Version 1.5
 
-- [ ] **Stereo Pair Detection**
+- [x] **Stereo Pair Support** (Added in v1.4)
   - Detect HomePod stereo pairs
   - Create single sensor for pair
-  - Expected: Version 1.6
 
 - [ ] **Custom Webhooks**
   - Trigger external services when music plays

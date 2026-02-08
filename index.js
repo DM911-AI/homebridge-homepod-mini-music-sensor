@@ -1,8 +1,12 @@
 const { exec } = require('child_process');
 const path = require('path');
+const fs = require('fs');
+
+const PLUGIN_NAME = 'homebridge-homepod-mini-music-sensor';
+const PLATFORM_NAME = 'HomePodMusicSensor';
 
 module.exports = (api) => {
-  api.registerPlatform('HomePodMusicSensor', HomePodMusicSensorPlatform);
+  api.registerPlatform(PLATFORM_NAME, HomePodMusicSensorPlatform);
 };
 
 class HomePodMusicSensorPlatform {
@@ -15,17 +19,32 @@ class HomePodMusicSensorPlatform {
     this.scriptPath = path.join(__dirname, 'get_nowplaying.py');
 
     if (!config) {
-      this.log.error('No configuration found for HomePod Music Sensor platform');
+      this.log.warn('No configuration found for HomePod Music Sensor platform');
       return;
     }
 
     this.api.on('didFinishLaunching', () => {
+      this.log.debug('didFinishLaunching');
       this.checkPythonEnvironment();
       this.discoverDevices();
+    });
+
+    this.api.on('shutdown', () => {
+      this.log.debug('Homebridge is shutting down, clearing all poll intervals');
+      for (const [uuid, interval] of this.pollIntervals) {
+        clearInterval(interval);
+      }
+      this.pollIntervals.clear();
     });
   }
 
   checkPythonEnvironment() {
+    // Verify the Python script exists
+    if (!fs.existsSync(this.scriptPath)) {
+      this.log.error(`Python script not found at: ${this.scriptPath}`);
+      return;
+    }
+
     exec('python3 --version', { timeout: 5000 }, (error, stdout) => {
       if (error) {
         this.log.error('Python 3 is not installed or not in PATH.');
@@ -52,13 +71,13 @@ class HomePodMusicSensorPlatform {
       devices = this.config.homepods.map(hp => ({
         name: hp.name,
         deviceId: hp.id,
-        isStereoPair: hp.isStereoPair || false
+        isStereoPair: hp.isStereoPair || false,
       }));
-      this.log.info('Using legacy config format (homepods). Consider updating to new format (devices with deviceId).');
+      this.log.warn('Using legacy config format (homepods). Please update to new format (devices with deviceId).');
     }
 
     if (!devices.length) {
-      this.log.warn('No devices configured!');
+      this.log.warn('No devices configured. Add HomePod devices in the plugin settings.');
       return;
     }
 
@@ -68,48 +87,45 @@ class HomePodMusicSensorPlatform {
     // Group by name for stereo pair detection
     const grouped = {};
 
-    devices.forEach(device => {
+    for (const device of devices) {
       if (!device.name || !device.deviceId) {
-        this.log.warn('Skipping device with missing name or deviceId:', JSON.stringify(device));
-        return;
+        this.log.warn('Skipping device with missing name or deviceId: %s', JSON.stringify(device));
+        continue;
       }
-      const name = device.name;
+      const name = device.name.trim();
       if (!grouped[name]) {
         grouped[name] = [];
       }
       grouped[name].push(device);
-    });
+    }
 
     // Create accessories
     for (const [name, devicesWithSameName] of Object.entries(grouped)) {
       const stereoPairDevices = devicesWithSameName.filter(d => d.isStereoPair === true);
 
       if (stereoPairDevices.length === 2) {
-        this.log.info(`Creating single sensor for stereo pair: ${name}`);
+        // Valid stereo pair: create a single sensor using the first device's ID
+        this.log.info('Creating single sensor for stereo pair: %s', name);
         const uuid = this.api.hap.uuid.generate(`homepod-${stereoPairDevices[0].deviceId}`);
         activeUUIDs.add(uuid);
         this.createAccessory(name, stereoPairDevices[0].deviceId);
-      } else if (stereoPairDevices.length > 2) {
-        this.log.warn(`More than 2 devices marked as stereo pair with name "${name}" - creating individual sensors`);
-        devicesWithSameName.forEach(device => {
-          const uuid = this.api.hap.uuid.generate(`homepod-${device.deviceId}`);
-          activeUUIDs.add(uuid);
-          this.createAccessory(device.name, device.deviceId);
-        });
       } else {
-        devicesWithSameName.forEach(device => {
+        if (stereoPairDevices.length > 2) {
+          this.log.warn('More than 2 devices marked as stereo pair with name "%s" — creating individual sensors', name);
+        }
+        for (const device of devicesWithSameName) {
           const uuid = this.api.hap.uuid.generate(`homepod-${device.deviceId}`);
           activeUUIDs.add(uuid);
           this.createAccessory(device.name, device.deviceId);
-        });
+        }
       }
     }
 
     // Remove cached accessories that are no longer in the config
     const staleAccessories = this.accessories.filter(acc => !activeUUIDs.has(acc.UUID));
     if (staleAccessories.length > 0) {
-      this.log.info(`Removing ${staleAccessories.length} stale cached accessory(ies)`);
-      this.api.unregisterPlatformAccessories('homebridge-homepod-mini-music-sensor', 'HomePodMusicSensor', staleAccessories);
+      this.log.info('Removing %d stale cached accessory(ies)', staleAccessories.length);
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, staleAccessories);
       this.accessories = this.accessories.filter(acc => activeUUIDs.has(acc.UUID));
     }
   }
@@ -119,32 +135,45 @@ class HomePodMusicSensorPlatform {
     const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
 
     if (existingAccessory) {
-      this.log.info(`Reusing cached accessory: ${name}`);
+      this.log.info('Reusing cached accessory: %s', name);
       this.setupAccessory(existingAccessory, name, deviceId);
     } else {
-      this.log.info(`Creating new accessory: ${name}`);
+      this.log.info('Creating new accessory: %s', name);
       const accessory = new this.api.platformAccessory(name, uuid);
       this.setupAccessory(accessory, name, deviceId);
-      this.api.registerPlatformAccessories('homebridge-homepod-mini-music-sensor', 'HomePodMusicSensor', [accessory]);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       this.accessories.push(accessory);
     }
   }
 
   setupAccessory(accessory, name, deviceId) {
-    const motionService = accessory.getService(this.api.hap.Service.MotionSensor) ||
-      accessory.addService(this.api.hap.Service.MotionSensor, name);
-
     accessory.context.deviceId = deviceId;
     accessory.context.name = name;
+
+    // Set up AccessoryInformation service
+    const infoService = accessory.getService(this.api.hap.Service.AccessoryInformation);
+    if (infoService) {
+      infoService
+        .setCharacteristic(this.api.hap.Characteristic.Manufacturer, 'Apple Inc.')
+        .setCharacteristic(this.api.hap.Characteristic.Model, 'HomePod')
+        .setCharacteristic(this.api.hap.Characteristic.SerialNumber, deviceId)
+        .setCharacteristic(this.api.hap.Characteristic.FirmwareRevision, require('./package.json').version);
+    }
+
+    // Set up MotionSensor service
+    const motionService = accessory.getService(this.api.hap.Service.MotionSensor) ||
+      accessory.addService(this.api.hap.Service.MotionSensor, name);
 
     // Clear any existing polling interval to prevent accumulation on re-setup
     if (this.pollIntervals.has(accessory.UUID)) {
       clearInterval(this.pollIntervals.get(accessory.UUID));
     }
 
+    // Initial status check
     this.updateStatus(accessory, motionService);
 
-    const updateInterval = (this.config.updateInterval || 5) * 1000;
+    // Set up polling
+    const updateInterval = Math.max(1, this.config.updateInterval || 5) * 1000;
     this.pollIntervals.set(accessory.UUID, setInterval(() => {
       this.updateStatus(accessory, motionService);
     }, updateInterval));
@@ -157,28 +186,28 @@ class HomePodMusicSensorPlatform {
     exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
-          this.log.error(`Timeout getting status for ${name}`);
+          this.log.warn('Timeout getting status for %s', name);
         } else {
-          this.log.error(`Error getting status for ${name}: ${error.message}`);
+          this.log.debug('Error getting status for %s: %s', name, error.message);
         }
         if (stderr) {
-          this.log.debug(`stderr for ${name}: ${stderr}`);
+          this.log.debug('stderr for %s: %s', name, stderr);
         }
         motionService.updateCharacteristic(
           this.api.hap.Characteristic.MotionDetected,
-          false
+          false,
         );
         return;
       }
 
       try {
-        const data = JSON.parse(stdout);
+        const data = JSON.parse(stdout.trim());
 
         if (data.error) {
-          this.log.debug(`${name}: ${data.error}`);
+          this.log.debug('%s: %s', name, data.error);
           motionService.updateCharacteristic(
             this.api.hap.Characteristic.MotionDetected,
-            false
+            false,
           );
           return;
         }
@@ -186,19 +215,19 @@ class HomePodMusicSensorPlatform {
         const isPlaying = this.shouldDetect(data);
 
         if (isPlaying && data.title) {
-          this.log.info(`${name}: ${data.title}${data.artist ? ' - ' + data.artist : ''}`);
+          this.log.debug('%s: Now playing — %s%s', name, data.title, data.artist ? ' - ' + data.artist : '');
         }
 
         motionService.updateCharacteristic(
           this.api.hap.Characteristic.MotionDetected,
-          isPlaying
+          isPlaying,
         );
       } catch (e) {
-        this.log.error(`Error parsing response for ${name}: ${e.message}`);
-        this.log.debug(`stdout was: ${stdout}`);
+        this.log.error('Error parsing response for %s: %s', name, e.message);
+        this.log.debug('Raw stdout for %s: %s', name, stdout);
         motionService.updateCharacteristic(
           this.api.hap.Characteristic.MotionDetected,
-          false
+          false,
         );
       }
     });
@@ -219,7 +248,7 @@ class HomePodMusicSensorPlatform {
       detectPodcasts = false,
       detectMovies = false,
       maxDuration = 600,
-      requireArtist = true
+      requireArtist = true,
     } = this.config;
 
     if (requireArtist && !data.artist) {
@@ -250,7 +279,7 @@ class HomePodMusicSensorPlatform {
     }
 
     // Fallback: if detectMusic is enabled and there's an artist, assume it's music
-    // (only for unknown/unrecognized media types)
+    // (handles unknown/unrecognized media types from pyatv)
     if (detectMusic && data.artist) {
       return true;
     }
@@ -259,7 +288,7 @@ class HomePodMusicSensorPlatform {
   }
 
   configureAccessory(accessory) {
-    this.log.info(`Loading accessory from cache: ${accessory.displayName}`);
+    this.log.debug('Loading accessory from cache: %s', accessory.displayName);
     this.accessories.push(accessory);
   }
 }
