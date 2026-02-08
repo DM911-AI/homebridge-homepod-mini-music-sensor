@@ -1,183 +1,264 @@
 const { exec } = require('child_process');
 const path = require('path');
-const fs = require('fs');
 
-let Service, Characteristic;
-
-module.exports = (homebridge) => {
-  Service = homebridge.hap.Service;
-  Characteristic = homebridge.hap.Characteristic;
-  homebridge.registerPlatform('homebridge-homepod-mini-music-sensor', 'HomePodMiniMusicSensor', HomePodPlatform, true);
+module.exports = (api) => {
+  api.registerPlatform('HomePodMusicSensor', HomePodMusicSensorPlatform);
 };
 
-class HomePodPlatform {
+class HomePodMusicSensorPlatform {
   constructor(log, config, api) {
     this.log = log;
-    this.config = config;
+    this.config = config || {};
     this.api = api;
     this.accessories = [];
+    this.scriptPath = path.join(__dirname, 'get_nowplaying.py');
 
-    // Validate configuration
     if (!config) {
       this.log.error('No configuration found for HomePod Music Sensor platform');
       return;
     }
 
-    if (!config.homepods || config.homepods.length === 0) {
-      this.log.error('No HomePods configured. Please add HomePods in the plugin settings.');
-      return;
-    }
-
-    // Default config values
-    this.detectMusic = config.detectMusic !== false;
-    this.detectPodcasts = config.detectPodcasts || false;
-    this.detectMovies = config.detectMovies || false;
-    this.maxDuration = config.maxDuration || 600;
-    this.requireArtist = config.requireArtist !== false;
-    this.updateInterval = (config.updateInterval || 5) * 1000;
-
-    // Validate Python script exists
-    this.pythonScript = path.join(__dirname, 'get_nowplaying.py');
-    if (!fs.existsSync(this.pythonScript)) {
-      this.log.error(`Python script not found at: ${this.pythonScript}`);
-      this.log.error('Plugin installation may be corrupted. Please reinstall.');
-      return;
-    }
-
-    if (api) {
-      this.api.on('didFinishLaunching', () => {
-        this.log('HomePod Mini Music Sensor Platform finished launching');
-        this.log(`Detection settings: Music=${this.detectMusic}, Podcasts=${this.detectPodcasts}, Movies=${this.detectMovies}`);
-        this.checkPythonEnvironment();
-        this.discoverDevices();
-      });
-    }
+    this.api.on('didFinishLaunching', () => {
+      this.checkPythonEnvironment();
+      this.discoverDevices();
+    });
   }
 
   checkPythonEnvironment() {
-    exec('python3 --version', (error, stdout, stderr) => {
+    exec('python3 --version', { timeout: 5000 }, (error, stdout) => {
       if (error) {
-        this.log.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        this.log.error('⚠️  Python 3 is not installed or not in PATH');
-        this.log.error('Please install Python 3 and pyatv:');
-        this.log.error('  brew install python3');
-        this.log.error('  pip3 install pyatv');
-        this.log.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        this.log.error('Python 3 is not installed or not in PATH.');
+        this.log.error('Install Python 3 and pyatv: brew install python3 && pip3 install pyatv');
         return;
       }
-      this.log(`Python detected: ${stdout.trim()}`);
-      
-      // Check if pyatv is installed
-      exec('python3 -c "import pyatv"', (error) => {
+      this.log.info(`Python detected: ${stdout.trim()}`);
+
+      exec('python3 -c "import pyatv"', { timeout: 5000 }, (error) => {
         if (error) {
-          this.log.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-          this.log.error('⚠️  pyatv library is not installed');
-          this.log.error('Please install it with:');
-          this.log.error('  pip3 install pyatv');
-          this.log.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          this.log.error('pyatv library is not installed. Install it with: pip3 install pyatv');
         } else {
-          this.log('✅ pyatv library detected');
+          this.log.debug('pyatv library detected');
         }
       });
     });
   }
 
-  configureAccessory(accessory) {
-    this.accessories.push(accessory);
-  }
-
   discoverDevices() {
-    const homepods = this.config.homepods || [];
-    
-    if (homepods.length === 0) {
-      this.log.warn('No HomePods configured in settings');
+    // Support both config formats: "devices" (new) and "homepods" (legacy)
+    let devices = this.config.devices || [];
+
+    if (!devices.length && this.config.homepods) {
+      devices = this.config.homepods.map(hp => ({
+        name: hp.name,
+        deviceId: hp.id,
+        isStereoPair: hp.isStereoPair || false
+      }));
+      this.log.info('Using legacy config format (homepods). Consider updating to new format (devices with deviceId).');
+    }
+
+    if (!devices.length) {
+      this.log.warn('No devices configured!');
       return;
     }
 
-    homepods.forEach((homepod) => {
-      if (!homepod.name || !homepod.id) {
-        this.log.warn('Skipping HomePod with missing name or id:', homepod);
+    // Track which UUIDs are still in the config, so we can remove stale cached accessories
+    const activeUUIDs = new Set();
+
+    // Group by name for stereo pair detection
+    const grouped = {};
+
+    devices.forEach(device => {
+      if (!device.name || !device.deviceId) {
+        this.log.warn('Skipping device with missing name or deviceId:', JSON.stringify(device));
         return;
       }
-
-      const uuid = this.api.hap.uuid.generate(homepod.id);
-      const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
-
-      if (existingAccessory) {
-        this.log(`Restoring HomePod: ${homepod.name}`);
-        new HomePodAccessory(this, existingAccessory, homepod);
-      } else {
-        this.log(`Adding new HomePod: ${homepod.name}`);
-        const accessory = new this.api.platformAccessory(homepod.name, uuid);
-        new HomePodAccessory(this, accessory, homepod);
-        this.api.registerPlatformAccessories('homebridge-homepod-mini-music-sensor', 'HomePodMiniMusicSensor', [accessory]);
+      const name = device.name;
+      if (!grouped[name]) {
+        grouped[name] = [];
       }
+      grouped[name].push(device);
     });
+
+    // Create accessories
+    for (const [name, devicesWithSameName] of Object.entries(grouped)) {
+      const stereoPairDevices = devicesWithSameName.filter(d => d.isStereoPair === true);
+
+      if (stereoPairDevices.length === 2) {
+        this.log.info(`Creating single sensor for stereo pair: ${name}`);
+        const uuid = this.api.hap.uuid.generate(`homepod-${stereoPairDevices[0].deviceId}`);
+        activeUUIDs.add(uuid);
+        this.createAccessory(name, stereoPairDevices[0].deviceId);
+      } else if (stereoPairDevices.length > 2) {
+        this.log.warn(`More than 2 devices marked as stereo pair with name "${name}" - creating individual sensors`);
+        devicesWithSameName.forEach(device => {
+          const uuid = this.api.hap.uuid.generate(`homepod-${device.deviceId}`);
+          activeUUIDs.add(uuid);
+          this.createAccessory(device.name, device.deviceId);
+        });
+      } else {
+        devicesWithSameName.forEach(device => {
+          const uuid = this.api.hap.uuid.generate(`homepod-${device.deviceId}`);
+          activeUUIDs.add(uuid);
+          this.createAccessory(device.name, device.deviceId);
+        });
+      }
+    }
+
+    // Remove cached accessories that are no longer in the config
+    const staleAccessories = this.accessories.filter(acc => !activeUUIDs.has(acc.UUID));
+    if (staleAccessories.length > 0) {
+      this.log.info(`Removing ${staleAccessories.length} stale cached accessory(ies)`);
+      this.api.unregisterPlatformAccessories('homebridge-homepod-mini-music-sensor', 'HomePodMusicSensor', staleAccessories);
+      this.accessories = this.accessories.filter(acc => activeUUIDs.has(acc.UUID));
+    }
   }
-}
 
-class HomePodAccessory {
-  constructor(platform, accessory, config) {
-    this.platform = platform;
-    this.accessory = accessory;
-    this.config = config;
-    this.log = platform.log;
+  createAccessory(name, deviceId) {
+    const uuid = this.api.hap.uuid.generate(`homepod-${deviceId}`);
+    const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
 
-    this.accessory.getService(Service.AccessoryInformation)
-      .setCharacteristic(Characteristic.Manufacturer, 'Apple')
-      .setCharacteristic(Characteristic.Model, 'HomePod mini')
-      .setCharacteristic(Characteristic.SerialNumber, config.id);
-
-    this.motionService = this.accessory.getService(Service.MotionSensor) 
-      || this.accessory.addService(Service.MotionSensor, config.name);
-
-    this.updateInterval = setInterval(() => {
-      this.updateStatus();
-    }, platform.updateInterval);
-
-    this.updateStatus();
+    if (existingAccessory) {
+      this.log.info(`Reusing cached accessory: ${name}`);
+      this.setupAccessory(existingAccessory, name, deviceId);
+    } else {
+      this.log.info(`Creating new accessory: ${name}`);
+      const accessory = new this.api.platformAccessory(name, uuid);
+      this.setupAccessory(accessory, name, deviceId);
+      this.api.registerPlatformAccessories('homebridge-homepod-mini-music-sensor', 'HomePodMusicSensor', [accessory]);
+      this.accessories.push(accessory);
+    }
   }
 
-  updateStatus() {
-    const filterConfig = JSON.stringify({
-      detectMusic: this.platform.detectMusic,
-      detectPodcasts: this.platform.detectPodcasts,
-      detectMovies: this.platform.detectMovies,
-      maxDuration: this.platform.maxDuration,
-      requireArtist: this.platform.requireArtist
-    });
-    
-    const command = `python3 "${this.platform.pythonScript}" ${this.config.id} '${filterConfig}'`;
+  setupAccessory(accessory, name, deviceId) {
+    const motionService = accessory.getService(this.api.hap.Service.MotionSensor) ||
+      accessory.addService(this.api.hap.Service.MotionSensor, name);
 
-    exec(command, { timeout: 10000 }, (error, stdout, stderr) => {
+    accessory.context.deviceId = deviceId;
+    accessory.context.name = name;
+
+    // Clear any existing polling interval to prevent accumulation on re-setup
+    if (accessory.context.pollInterval) {
+      clearInterval(accessory.context.pollInterval);
+    }
+
+    this.updateStatus(accessory, motionService);
+
+    const updateInterval = (this.config.updateInterval || 5) * 1000;
+    accessory.context.pollInterval = setInterval(() => {
+      this.updateStatus(accessory, motionService);
+    }, updateInterval);
+  }
+
+  updateStatus(accessory, motionService) {
+    const deviceId = accessory.context.deviceId;
+    const name = accessory.context.name;
+
+    exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
-          this.log.error(`Timeout getting status for ${this.config.name}`);
+          this.log.error(`Timeout getting status for ${name}`);
         } else {
-          this.log.error(`Error getting status for ${this.config.name}: ${error.message}`);
+          this.log.error(`Error getting status for ${name}: ${error.message}`);
         }
-        this.motionService.getCharacteristic(Characteristic.MotionDetected).updateValue(false);
+        if (stderr) {
+          this.log.debug(`stderr for ${name}: ${stderr}`);
+        }
+        motionService.updateCharacteristic(
+          this.api.hap.Characteristic.MotionDetected,
+          false
+        );
         return;
-      }
-
-      if (stderr) {
-        this.log.debug(`Python stderr for ${this.config.name}:`, stderr);
       }
 
       try {
         const data = JSON.parse(stdout);
-        const isPlaying = data.state === 'playing';
-        
-        this.motionService.getCharacteristic(Characteristic.MotionDetected).updateValue(isPlaying);
-        
-        if (isPlaying) {
-          this.log(`${this.config.name}: ${data.title} - ${data.artist}`);
+
+        if (data.error) {
+          this.log.debug(`${name}: ${data.error}`);
+          motionService.updateCharacteristic(
+            this.api.hap.Characteristic.MotionDetected,
+            false
+          );
+          return;
         }
+
+        const isPlaying = this.shouldDetect(data);
+
+        if (isPlaying && data.title) {
+          this.log.info(`${name}: ${data.title}${data.artist ? ' - ' + data.artist : ''}`);
+        }
+
+        motionService.updateCharacteristic(
+          this.api.hap.Characteristic.MotionDetected,
+          isPlaying
+        );
       } catch (e) {
-        this.log.error(`Error parsing data for ${this.config.name}: ${e.message}`);
-        this.log.debug('Raw output:', stdout);
-        this.motionService.getCharacteristic(Characteristic.MotionDetected).updateValue(false);
+        this.log.error(`Error parsing response for ${name}: ${e.message}`);
+        this.log.debug(`stdout was: ${stdout}`);
+        motionService.updateCharacteristic(
+          this.api.hap.Characteristic.MotionDetected,
+          false
+        );
       }
     });
+  }
+
+  shouldDetect(data) {
+    if (!data || !data.state) {
+      return false;
+    }
+
+    const state = data.state.toLowerCase();
+    if (!state.includes('playing')) {
+      return false;
+    }
+
+    const {
+      detectMusic = true,
+      detectPodcasts = false,
+      detectMovies = false,
+      maxDuration = 600,
+      requireArtist = true
+    } = this.config;
+
+    if (requireArtist && !data.artist) {
+      return false;
+    }
+
+    if (data.total_time && data.total_time > maxDuration) {
+      return false;
+    }
+
+    const mediaType = (data.media_type || '').toLowerCase();
+
+    if (mediaType.includes('music') && detectMusic) {
+      return true;
+    }
+
+    if (mediaType.includes('podcast') && detectPodcasts) {
+      return true;
+    }
+
+    if (mediaType.includes('video') && detectMovies) {
+      return true;
+    }
+
+    // If the media type is explicitly something we checked above, don't fall through
+    if (mediaType.includes('video') || mediaType.includes('podcast')) {
+      return false;
+    }
+
+    // Fallback: if detectMusic is enabled and there's an artist, assume it's music
+    // (only for unknown/unrecognized media types)
+    if (detectMusic && data.artist) {
+      return true;
+    }
+
+    return false;
+  }
+
+  configureAccessory(accessory) {
+    this.log.info(`Loading accessory from cache: ${accessory.displayName}`);
+    this.accessories.push(accessory);
   }
 }

@@ -1,61 +1,60 @@
 {
-  "pluginAlias": "HomePodMiniMusicSensor",
+  "pluginAlias": "HomePodMusicSensor",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "<p align='center'><img src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/hero-image.jpg' width='100%' style='max-width: 600px;'></p><p align='center'><strong>🎵 Transform your HomePod mini into a smart music sensor for HomeKit</strong></p>",
-  "footerDisplay": "<p align='center'>For detailed documentation, see the <a href='https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor#readme' target='_blank'>GitHub README</a></p><p align='center'>⭐ Star on <a href='https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor' target='_blank'>GitHub</a> if you find this useful!</p>",
+  "headerDisplay": "<div align='center'><img src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/hero-image.jpg' width='100%' style='max-width: 800px; border-radius: 10px; margin: 20px 0;'></div>",
+  "footerDisplay": "For help and documentation, visit the [GitHub repository](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor)",
   "schema": {
     "type": "object",
     "properties": {
       "name": {
         "title": "Platform Name",
         "type": "string",
-        "default": "HomePod Mini Music Sensor",
-        "required": true,
-        "description": "Name for this platform (shown in Homebridge logs)"
+        "default": "HomePod Music Sensor",
+        "required": true
       },
       "detectMusic": {
         "title": "🎵 Detect Music",
         "type": "boolean",
         "default": true,
-        "description": "Trigger sensor when music is playing (Apple Music, Spotify, etc.)"
+        "description": "Trigger sensor when music is playing"
       },
       "detectPodcasts": {
         "title": "🎙️ Detect Podcasts",
         "type": "boolean",
         "default": false,
-        "description": "Trigger sensor when podcasts/audiobooks are playing (content longer than Max Duration)"
+        "description": "Trigger sensor when podcasts/audiobooks are playing"
       },
       "detectMovies": {
         "title": "🎬 Detect Movies/TV",
         "type": "boolean",
         "default": false,
-        "description": "Trigger sensor when movies or TV shows are playing via AirPlay"
+        "description": "Trigger sensor when AirPlay video is playing"
       },
       "maxDuration": {
         "title": "⏱️ Max Duration (seconds)",
-        "type": "number",
+        "type": "integer",
         "default": 600,
         "minimum": 60,
         "maximum": 7200,
-        "description": "Maximum content duration to detect. Default: 600 (10 minutes). Content longer than this will only trigger if 'Detect Podcasts' is enabled."
+        "description": "Maximum duration of content to detect (filters out long podcasts/movies)"
       },
       "requireArtist": {
         "title": "🎤 Require Artist Field",
         "type": "boolean",
         "default": true,
-        "description": "Only trigger if content has an artist field. Helps filter out movies/TV which typically don't have artist metadata. Disable if you want to detect movies."
+        "description": "Only trigger for content with artist metadata (filters out movies/TV)"
       },
       "updateInterval": {
         "title": "🔄 Update Interval (seconds)",
-        "type": "number",
+        "type": "integer",
         "default": 5,
         "minimum": 1,
         "maximum": 60,
-        "description": "How often to check playback status. Lower = more responsive but higher CPU usage. Default: 5 seconds."
+        "description": "How often to check playback status"
       },
-      "homepods": {
-        "title": "HomePods",
+      "devices": {
+        "title": "🏠 Your HomePods",
         "type": "array",
         "items": {
           "type": "object",
@@ -64,15 +63,46 @@
               "title": "Display Name",
               "type": "string",
               "required": true,
-              "placeholder": "e.g., Bedroom",
-              "description": "Friendly name for this HomePod (will appear in Home app)"
+              "placeholder": "e.g., Bedroom, Kitchen, Living Room",
+              "description": "Friendly name for this HomePod"
             },
-            "id": {
+            "deviceId": {
               "title": "Device ID",
               "type": "string",
               "required": true,
               "placeholder": "e.g., A294FB11E039",
-              "description": "HomePod identifier (see instructions below)"
+              "description": "HomePod identifier without colons/dashes. Run: python3 -m pyatv.scripts.atvremote scan"
+            },
+            "isStereoPair": {
+              "title": "🎵 Part of Stereo Pair",
+              "type": "boolean",
+              "default": false,
+              "description": "Check this if this HomePod is part of a stereo pair. Both HomePods in the pair must have the SAME name and this box checked."
+            }
+          }
+        }
+      },
+      "homepods": {
+        "title": "🏠 Your HomePods (Legacy)",
+        "type": "array",
+        "description": "⚠️ This field is deprecated. Please use 'devices' instead with 'deviceId' field.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Display Name",
+              "type": "string",
+              "required": true
+            },
+            "id": {
+              "title": "Device ID",
+              "type": "string",
+              "required": true
+            },
+            "isStereoPair": {
+              "title": "Part of Stereo Pair",
+              "type": "boolean",
+              "default": false
             }
           }
         }
@@ -81,65 +111,29 @@
   },
   "layout": [
     {
-      "type": "help",
-      "helpvalue": "<h4 style='text-align: center;'>🎵 HomePod Mini Music Sensor</h4><p style='text-align: center;'>Create HomeKit automations based on what's playing on your HomePods!</p><hr>"
-    },
-    {
-      "type": "section",
+      "type": "fieldset",
       "title": "🎛️ Detection Settings",
       "expandable": true,
       "expanded": false,
       "items": [
-        {
-          "key": "detectMusic",
-          "type": "boolean"
-        },
-        {
-          "key": "detectPodcasts",
-          "type": "boolean"
-        },
-        {
-          "key": "detectMovies",
-          "type": "boolean"
-        },
-        {
-          "key": "maxDuration",
-          "type": "number"
-        },
-        {
-          "key": "requireArtist",
-          "type": "boolean"
-        },
-        {
-          "key": "updateInterval",
-          "type": "number"
-        }
+        "detectMusic",
+        "detectPodcasts",
+        "detectMovies",
+        "maxDuration",
+        "requireArtist",
+        "updateInterval"
       ]
     },
     {
-      "type": "help",
-      "helpvalue": "<hr><h5>💡 Detection Tips:</h5><ul><li><strong>Music Only:</strong> Keep defaults (Music: ON, Podcasts: OFF, Movies: OFF)</li><li><strong>Music + Podcasts:</strong> Enable both + increase Max Duration to 3600 (60 min)</li><li><strong>Everything:</strong> Enable all + disable 'Require Artist Field'</li></ul>"
-    },
-    {
-      "type": "section",
+      "key": "devices",
+      "type": "array",
       "title": "🏠 Your HomePods",
-      "expandable": true,
-      "expanded": true,
+      "buttonText": "➕ Add HomePod",
       "items": [
-        {
-          "key": "homepods",
-          "type": "array",
-          "buttonText": "➕ Add HomePod",
-          "items": [
-            "homepods[].name",
-            "homepods[].id"
-          ]
-        }
+        "devices[].name",
+        "devices[].deviceId",
+        "devices[].isStereoPair"
       ]
-    },
-    {
-      "type": "help",
-      "helpvalue": "<hr><h5>📋 How to Find HomePod IDs:</h5><ol><li>Open <strong>Terminal</strong></li><li>Run: <code>python3 -m pyatv.scripts.atvremote scan</code></li><li>Find your HomePod in the list</li><li>Copy the <strong>Identifier</strong> (remove colons/dashes)</li><li>Example: <code>A2:94:FB:11:E0:39</code> → <code>A294FB11E039</code></li></ol><p><em>💡 Each HomePod will appear as a separate Motion Sensor in HomeKit</em></p>"
     }
   ]
 }
