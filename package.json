@@ -1,18 +1,11 @@
 {
   "name": "homebridge-homepod-mini-music-sensor",
-  "displayName": "HomePod Music Sensor",
-  "version": "1.4.5",
-  "description": "HomePod mini music sensor for Homebridge - Trigger HomeKit automations based on music playback",
+  "version": "1.4.6",
+  "description": "Transform your HomePod mini into a smart music sensor for HomeKit with stereo pair support",
   "main": "index.js",
-  "files": [
-    "index.js",
-    "config.schema.json",
-    "get_nowplaying.py",
-    "assets/",
-    "LICENSE",
-    "README.md",
-    "CHANGELOG.md"
-  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "keywords": [
     "homebridge-plugin",
     "homepod",
@@ -22,15 +15,14 @@
     "homekit",
     "automation",
     "apple",
-    "airplay"
+    "airplay",
+    "stereo-pair"
   ],
   "engines": {
-    "node": ">=18.0.0",
-    "homebridge": ">=1.6.0"
+    "node": ">=14.0.0",
+    "homebridge": ">=1.3.0"
   },
-  "author": {
-    "name": "Daniel Mazuz"
-  },
+  "author": "Daniel Mazuz",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -39,13 +31,5 @@
   "bugs": {
     "url": "https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues"
   },
-  "homepage": "https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor#readme",
-  "dependencies": {},
-  "peerDependencies": {
-    "homebridge": ">=1.6.0"
-  },
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/DM911-AI"
-  }
+  "homepage": "https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor#readme"
 }

@@ -71,7 +71,7 @@ class HomePodMusicSensorPlatform {
       devices = this.config.homepods.map(hp => ({
         name: hp.name,
         deviceId: hp.id,
-        isStereoPair: hp.isStereoPair || false,
+        stereoPair: hp.isStereoPair || hp.stereoPair || false,
       }));
       this.log.warn('Using legacy config format (homepods). Please update to new format (devices with deviceId).');
     }
@@ -101,14 +101,15 @@ class HomePodMusicSensorPlatform {
 
     // Create accessories
     for (const [name, devicesWithSameName] of Object.entries(grouped)) {
-      const stereoPairDevices = devicesWithSameName.filter(d => d.isStereoPair === true);
+      const stereoPairDevices = devicesWithSameName.filter(d => d.stereoPair === true);
 
       if (stereoPairDevices.length === 2) {
-        // Valid stereo pair: create a single sensor using the first device's ID
-        this.log.info('Creating single sensor for stereo pair: %s', name);
-        const uuid = this.api.hap.uuid.generate(`homepod-${stereoPairDevices[0].deviceId}`);
+        // Valid stereo pair: create a single sensor monitoring BOTH devices
+        this.log.info('Creating single sensor for stereo pair: %s (monitoring both HomePods)', name);
+        const deviceIds = stereoPairDevices.map(d => d.deviceId);
+        const uuid = this.api.hap.uuid.generate(`homepod-stereo-${deviceIds.join('-')}`);
         activeUUIDs.add(uuid);
-        this.createAccessory(name, stereoPairDevices[0].deviceId);
+        this.createAccessory(name, deviceIds, true);
       } else {
         if (stereoPairDevices.length > 2) {
           this.log.warn('More than 2 devices marked as stereo pair with name "%s" — creating individual sensors', name);
@@ -116,7 +117,7 @@ class HomePodMusicSensorPlatform {
         for (const device of devicesWithSameName) {
           const uuid = this.api.hap.uuid.generate(`homepod-${device.deviceId}`);
           activeUUIDs.add(uuid);
-          this.createAccessory(device.name, device.deviceId);
+          this.createAccessory(device.name, [device.deviceId], false);
         }
       }
     }
@@ -130,33 +131,39 @@ class HomePodMusicSensorPlatform {
     }
   }
 
-  createAccessory(name, deviceId) {
-    const uuid = this.api.hap.uuid.generate(`homepod-${deviceId}`);
+  createAccessory(name, deviceIds, isStereoPair) {
+    // deviceIds is now always an array
+    const uuid = isStereoPair 
+      ? this.api.hap.uuid.generate(`homepod-stereo-${deviceIds.join('-')}`)
+      : this.api.hap.uuid.generate(`homepod-${deviceIds[0]}`);
+    
     const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
 
     if (existingAccessory) {
       this.log.info('Reusing cached accessory: %s', name);
-      this.setupAccessory(existingAccessory, name, deviceId);
+      this.setupAccessory(existingAccessory, name, deviceIds, isStereoPair);
     } else {
       this.log.info('Creating new accessory: %s', name);
       const accessory = new this.api.platformAccessory(name, uuid);
-      this.setupAccessory(accessory, name, deviceId);
+      this.setupAccessory(accessory, name, deviceIds, isStereoPair);
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       this.accessories.push(accessory);
     }
   }
 
-  setupAccessory(accessory, name, deviceId) {
-    accessory.context.deviceId = deviceId;
+  setupAccessory(accessory, name, deviceIds, isStereoPair) {
+    // Store device IDs as an array
+    accessory.context.deviceIds = deviceIds;
     accessory.context.name = name;
+    accessory.context.isStereoPair = isStereoPair;
 
     // Set up AccessoryInformation service
     const infoService = accessory.getService(this.api.hap.Service.AccessoryInformation);
     if (infoService) {
       infoService
         .setCharacteristic(this.api.hap.Characteristic.Manufacturer, 'Apple Inc.')
-        .setCharacteristic(this.api.hap.Characteristic.Model, 'HomePod')
-        .setCharacteristic(this.api.hap.Characteristic.SerialNumber, deviceId)
+        .setCharacteristic(this.api.hap.Characteristic.Model, isStereoPair ? 'HomePod Stereo Pair' : 'HomePod')
+        .setCharacteristic(this.api.hap.Characteristic.SerialNumber, deviceIds.join('-'))
         .setCharacteristic(this.api.hap.Characteristic.FirmwareRevision, require('./package.json').version);
     }
 
@@ -180,9 +187,58 @@ class HomePodMusicSensorPlatform {
   }
 
   updateStatus(accessory, motionService) {
-    const deviceId = accessory.context.deviceId;
+    const deviceIds = accessory.context.deviceIds;
     const name = accessory.context.name;
+    const isStereoPair = accessory.context.isStereoPair;
 
+    if (isStereoPair) {
+      // Check both HomePods in the stereo pair
+      this.checkStereoPairStatus(deviceIds, name, motionService);
+    } else {
+      // Single HomePod
+      this.checkSingleDeviceStatus(deviceIds[0], name, motionService);
+    }
+  }
+
+  checkStereoPairStatus(deviceIds, name, motionService) {
+    let completed = 0;
+    let isAnyPlaying = false;
+    let playingInfo = null;
+
+    deviceIds.forEach((deviceId, index) => {
+      exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
+        completed++;
+
+        if (!error) {
+          try {
+            const data = JSON.parse(stdout.trim());
+            if (!data.error && this.shouldDetect(data)) {
+              isAnyPlaying = true;
+              if (!playingInfo && data.title) {
+                playingInfo = { title: data.title, artist: data.artist };
+              }
+            }
+          } catch (e) {
+            this.log.debug('Error parsing response for %s (device %d): %s', name, index + 1, e.message);
+          }
+        }
+
+        // When both devices have been checked
+        if (completed === deviceIds.length) {
+          if (isAnyPlaying && playingInfo) {
+            this.log.debug('%s (Stereo): Now playing — %s%s', name, playingInfo.title, playingInfo.artist ? ' - ' + playingInfo.artist : '');
+          }
+          
+          motionService.updateCharacteristic(
+            this.api.hap.Characteristic.MotionDetected,
+            isAnyPlaying,
+          );
+        }
+      });
+    });
+  }
+
+  checkSingleDeviceStatus(deviceId, name, motionService) {
     exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
