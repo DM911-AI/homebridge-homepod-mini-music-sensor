@@ -1,6 +1,6 @@
 {
   "name": "homebridge-homepod-mini-music-sensor",
-  "version": "1.4.6",
+  "version": "1.5.0",
   "description": "Transform your HomePod mini into a smart music sensor for HomeKit with stereo pair support",
   "main": "index.js",
   "scripts": {
@@ -19,8 +19,8 @@
     "stereo-pair"
   ],
   "engines": {
-    "node": ">=14.0.0",
-    "homebridge": ">=1.3.0"
+    "node": "^20 || ^22 || ^24",
+    "homebridge": "^1.8.0 || ^2.0.0-beta.0"
   },
   "author": "Daniel Mazuz",
   "license": "MIT",
