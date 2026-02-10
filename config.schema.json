@@ -5,12 +5,13 @@
   "headerDisplay": "<p align='center'><img width='250px' src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg'></p>\n\nTransform your HomePod mini into a smart music sensor for HomeKit. Create powerful automations based on what's playing on your HomePods.\n\n**New in v1.4.6:** Stereo Pair Support! Create a single sensor for HomePod pairs.",
   "schema": {
     "type": "object",
-    "properties": {
+    "required": ["name"],
+      "properties": {
       "name": {
         "title": "Platform Name",
         "type": "string",
-        "default": "HomePod Music Sensor",
-        "required": true
+        "default": "HomePod Music Sensor"
+        
       },
       "detectMusic": {
         "title": "🎵 Detect Music",
@@ -56,18 +57,19 @@
         "title": "🏠 Your HomePods",
         "type": "array",
         "items": {
+          "required": ["name", "deviceId"],
           "type": "object",
-          "properties": {
+      "properties": {
             "name": {
               "title": "Display Name",
               "type": "string",
-              "required": true,
+              
               "description": "Friendly name for this HomePod (e.g., 'Bedroom', 'Kitchen'). For stereo pairs, use the same name for both HomePods."
             },
             "deviceId": {
               "title": "Device ID",
               "type": "string",
-              "required": true,
+              
               "pattern": "^[A-F0-9]+$",
               "description": "HomePod identifier from scan (remove colons/dashes). Example: A294FB11E039. Run 'python3 -m pyatv.scripts.atvremote scan' to find IDs."
             },
