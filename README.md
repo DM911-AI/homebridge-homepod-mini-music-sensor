@@ -13,6 +13,8 @@
 </p>
 
 <p align="center">
+  
+  <img src="https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=flat">
   <img src="https://img.shields.io/badge/HomePod-mini-purple.svg" alt="HomePod">
   <img src="https://img.shields.io/badge/HomeKit-Compatible-blue.svg" alt="HomeKit">
   <img src="https://img.shields.io/badge/Homebridge-Plugin-orange.svg" alt="Homebridge">
