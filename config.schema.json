@@ -2,82 +2,159 @@
   "pluginAlias": "HomePodMusicSensor",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "<p align='center'><img width='250px' src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg'></p>\n\nTransform your HomePod mini into a smart music sensor for HomeKit. Create powerful automations based on what's playing on your HomePods.\n\n**New in v1.4.6:** Stereo Pair Support! Create a single sensor for HomePod pairs.",
+  "headerDisplay": "<p align='center'><img width='250px' src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg'></p>\nTransform your HomePod mini and Apple TV into smart sensors for HomeKit.\n\n**New in v1.6.0:** Apple TV Support! Power, Playback, and per-App sensors.",
   "schema": {
     "type": "object",
-    "required": ["name"],
-      "properties": {
+    "required": [
+      "name"
+    ],
+    "properties": {
       "name": {
         "title": "Platform Name",
         "type": "string",
         "default": "HomePod Music Sensor"
-        
       },
       "detectMusic": {
-        "title": "🎵 Detect Music",
+        "title": "Detect Music",
         "type": "boolean",
         "default": true,
         "description": "Trigger sensor when music is playing (Apple Music, Spotify, etc.)"
       },
       "detectPodcasts": {
-        "title": "🎙️ Detect Podcasts",
+        "title": "Detect Podcasts",
         "type": "boolean",
         "default": false,
         "description": "Trigger sensor when podcasts or audiobooks are playing"
       },
       "detectMovies": {
-        "title": "🎬 Detect Movies/TV",
+        "title": "Detect Movies/TV",
         "type": "boolean",
         "default": false,
         "description": "Trigger sensor when movies or TV shows are playing via AirPlay"
       },
       "maxDuration": {
-        "title": "⏱️ Max Duration (seconds)",
+        "title": "Max Duration (seconds)",
         "type": "integer",
         "default": 600,
         "minimum": 60,
         "maximum": 36000,
-        "description": "Maximum duration of content to detect (filters out long content like movies). Default: 600 seconds (10 minutes)"
+        "description": "Maximum duration of content to detect. Default: 600 seconds (10 minutes)"
       },
       "requireArtist": {
-        "title": "🎤 Require Artist Field",
+        "title": "Require Artist Field",
         "type": "boolean",
         "default": true,
-        "description": "Only detect content that has artist metadata (helps filter out non-music content)"
+        "description": "Only detect content that has artist metadata"
       },
       "updateInterval": {
-        "title": "🔄 Update Interval (seconds)",
+        "title": "Update Interval (seconds)",
         "type": "integer",
         "default": 5,
         "minimum": 1,
         "maximum": 60,
-        "description": "How often to check HomePod status. Lower = faster updates but more CPU usage"
+        "description": "How often to check device status"
       },
       "devices": {
-        "title": "🏠 Your HomePods",
+        "title": "Your HomePods",
         "type": "array",
         "items": {
-          "required": ["name", "deviceId"],
           "type": "object",
-      "properties": {
+          "required": [
+            "name",
+            "deviceId"
+          ],
+          "properties": {
             "name": {
               "title": "Display Name",
               "type": "string",
-              
-              "description": "Friendly name for this HomePod (e.g., 'Bedroom', 'Kitchen'). For stereo pairs, use the same name for both HomePods."
+              "description": "Friendly name for this HomePod. For stereo pairs, use the same name for both."
             },
             "deviceId": {
               "title": "Device ID",
               "type": "string",
-              
               "pattern": "^[A-F0-9]+$",
-              "description": "HomePod identifier from scan (remove colons/dashes). Example: A294FB11E039. Run 'python3 -m pyatv.scripts.atvremote scan' to find IDs."
+              "description": "HomePod identifier from scan (remove colons/dashes)."
             },
             "stereoPair": {
-              "title": "🎵 Part of Stereo Pair",
+              "title": "Part of Stereo Pair",
               "type": "boolean",
               "default": false,
-              "description": "Enable if this HomePod is part of a stereo pair. Give both HomePods the same name to create a single sensor that monitors both."
+              "description": "Enable if this HomePod is part of a stereo pair."
+            }
+          }
+        }
+      },
+      "appleTVs": {
+        "title": "Your Apple TVs",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "name",
+            "deviceId",
+            "companionCredentials",
+            "airplayCredentials"
+          ],
+          "properties": {
+            "name": {
+              "title": "Display Name",
+              "type": "string",
+              "description": "Friendly name for this Apple TV"
+            },
+            "deviceId": {
+              "title": "Device ID",
+              "type": "string",
+              "description": "Apple TV identifier from scan (remove colons/dashes)."
+            },
+            "companionCredentials": {
+              "title": "Companion Credentials",
+              "type": "string",
+              "description": "Companion protocol credentials from pairing. See README."
+            },
+            "airplayCredentials": {
+              "title": "AirPlay Credentials",
+              "type": "string",
+              "description": "AirPlay protocol credentials from pairing. See README."
+            },
+            "enablePowerSensor": {
+              "title": "Power Sensor",
+              "type": "boolean",
+              "default": true,
+              "description": "Occupancy Sensor that detects when Apple TV is on/off"
+            },
+            "enablePlaybackSensor": {
+              "title": "Playback Sensor",
+              "type": "boolean",
+              "default": true,
+              "description": "Motion Sensor that detects when something is playing/paused"
+            },
+            "apps": {
+              "title": "App Sensors",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "appId"
+                ],
+                "properties": {
+                  "name": {
+                    "title": "App Name",
+                    "type": "string",
+                    "description": "Display name (e.g. Netflix, YouTube)"
+                  },
+                  "appId": {
+                    "title": "App Bundle ID",
+                    "type": "string",
+                    "description": "Common: com.netflix.Netflix, com.google.ios.youtube, com.disney.disneyplus, com.apple.Atv, com.spotify.client, com.plexapp.plex"
+                  },
+                  "detectPlayingOnly": {
+                    "title": "Detect Only When Playing",
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If enabled, triggers only when app is actively playing. If disabled, triggers whenever app is open."
+                  }
+                }
+              }
             }
           }
         }
@@ -87,7 +164,7 @@
   "layout": [
     {
       "type": "fieldset",
-      "title": "🎛️ Detection Settings",
+      "title": "HomePod Detection Settings",
       "expandable": true,
       "expanded": false,
       "items": [
@@ -103,11 +180,36 @@
       "key": "devices",
       "type": "array",
       "orderable": false,
-      "buttonText": "➕ Add HomePod",
+      "buttonText": "Add HomePod",
       "items": [
         "devices[].name",
         "devices[].deviceId",
         "devices[].stereoPair"
+      ]
+    },
+    {
+      "key": "appleTVs",
+      "type": "array",
+      "orderable": false,
+      "buttonText": "Add Apple TV",
+      "items": [
+        "appleTVs[].name",
+        "appleTVs[].deviceId",
+        "appleTVs[].companionCredentials",
+        "appleTVs[].airplayCredentials",
+        "appleTVs[].enablePowerSensor",
+        "appleTVs[].enablePlaybackSensor",
+        {
+          "key": "appleTVs[].apps",
+          "type": "array",
+          "orderable": false,
+          "buttonText": "Add App Sensor",
+          "items": [
+            "appleTVs[].apps[].name",
+            "appleTVs[].apps[].appId",
+            "appleTVs[].apps[].detectPlayingOnly"
+          ]
+        }
       ]
     }
   ]
