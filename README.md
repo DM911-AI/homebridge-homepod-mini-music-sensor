@@ -14,7 +14,7 @@
 
 <p align="center">
   
-  <img src="https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=flat">
+  <a href="https://github.com/homebridge/homebridge/wiki/Verified-Plugins"><img src="https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=flat&logoColor=%23FFFFFF&logo=homebridge"></a>
   <img src="https://img.shields.io/badge/HomePod-mini-purple.svg" alt="HomePod">
   <img src="https://img.shields.io/badge/HomeKit-Compatible-blue.svg" alt="HomeKit">
   <img src="https://img.shields.io/badge/Homebridge-Plugin-orange.svg" alt="Homebridge">
