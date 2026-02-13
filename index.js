@@ -17,6 +17,7 @@ class HomePodMusicSensorPlatform {
     this.accessories = [];
     this.pollIntervals = new Map();
     this.scriptPath = path.join(__dirname, 'get_nowplaying.py');
+    this.appletvScriptPath = path.join(__dirname, 'get_appletv_status.py');
 
     if (!config) {
       this.log.warn('No configuration found for HomePod Music Sensor platform');
@@ -27,6 +28,7 @@ class HomePodMusicSensorPlatform {
       this.log.debug('didFinishLaunching');
       this.checkPythonEnvironment();
       this.discoverDevices();
+      this.discoverAppleTVDevices();
     });
 
     this.api.on('shutdown', () => {
@@ -39,7 +41,6 @@ class HomePodMusicSensorPlatform {
   }
 
   checkPythonEnvironment() {
-    // Verify the Python script exists
     if (!fs.existsSync(this.scriptPath)) {
       this.log.error(`Python script not found at: ${this.scriptPath}`);
       return;
@@ -63,8 +64,11 @@ class HomePodMusicSensorPlatform {
     });
   }
 
+  // ============================================================
+  //  HomePod Device Discovery (existing functionality)
+  // ============================================================
+
   discoverDevices() {
-    // Support both config formats: "devices" (new) and "homepods" (legacy)
     let devices = this.config.devices || [];
 
     if (!devices.length && this.config.homepods) {
@@ -77,14 +81,11 @@ class HomePodMusicSensorPlatform {
     }
 
     if (!devices.length) {
-      this.log.warn('No devices configured. Add HomePod devices in the plugin settings.');
+      this.log.info('No HomePod devices configured.');
       return;
     }
 
-    // Track which UUIDs are still in the config, so we can remove stale cached accessories
     const activeUUIDs = new Set();
-
-    // Group by name for stereo pair detection
     const grouped = {};
 
     for (const device of devices) {
@@ -99,12 +100,10 @@ class HomePodMusicSensorPlatform {
       grouped[name].push(device);
     }
 
-    // Create accessories
     for (const [name, devicesWithSameName] of Object.entries(grouped)) {
       const stereoPairDevices = devicesWithSameName.filter(d => d.stereoPair === true);
 
       if (stereoPairDevices.length === 2) {
-        // Valid stereo pair: create a single sensor monitoring BOTH devices
         this.log.info('Creating single sensor for stereo pair: %s (monitoring both HomePods)', name);
         const deviceIds = stereoPairDevices.map(d => d.deviceId);
         const uuid = this.api.hap.uuid.generate(`homepod-stereo-${deviceIds.join('-')}`);
@@ -112,7 +111,7 @@ class HomePodMusicSensorPlatform {
         this.createAccessory(name, deviceIds, true);
       } else {
         if (stereoPairDevices.length > 2) {
-          this.log.warn('More than 2 devices marked as stereo pair with name "%s" — creating individual sensors', name);
+          this.log.warn('More than 2 devices marked as stereo pair with name "%s" - creating individual sensors', name);
         }
         for (const device of devicesWithSameName) {
           const uuid = this.api.hap.uuid.generate(`homepod-${device.deviceId}`);
@@ -122,21 +121,22 @@ class HomePodMusicSensorPlatform {
       }
     }
 
-    // Remove cached accessories that are no longer in the config
-    const staleAccessories = this.accessories.filter(acc => !activeUUIDs.has(acc.UUID));
+    const staleAccessories = this.accessories.filter(acc =>
+      !activeUUIDs.has(acc.UUID) &&
+      acc.context.deviceType === 'homepod'
+    );
     if (staleAccessories.length > 0) {
-      this.log.info('Removing %d stale cached accessory(ies)', staleAccessories.length);
+      this.log.info('Removing %d stale cached HomePod accessory(ies)', staleAccessories.length);
       this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, staleAccessories);
-      this.accessories = this.accessories.filter(acc => activeUUIDs.has(acc.UUID));
+      this.accessories = this.accessories.filter(acc => !staleAccessories.includes(acc));
     }
   }
 
   createAccessory(name, deviceIds, isStereoPair) {
-    // deviceIds is now always an array
-    const uuid = isStereoPair 
+    const uuid = isStereoPair
       ? this.api.hap.uuid.generate(`homepod-stereo-${deviceIds.join('-')}`)
       : this.api.hap.uuid.generate(`homepod-${deviceIds[0]}`);
-    
+
     const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
 
     if (existingAccessory) {
@@ -145,6 +145,7 @@ class HomePodMusicSensorPlatform {
     } else {
       this.log.info('Creating new accessory: %s', name);
       const accessory = new this.api.platformAccessory(name, uuid);
+      accessory.context.deviceType = 'homepod';
       this.setupAccessory(accessory, name, deviceIds, isStereoPair);
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       this.accessories.push(accessory);
@@ -152,12 +153,11 @@ class HomePodMusicSensorPlatform {
   }
 
   setupAccessory(accessory, name, deviceIds, isStereoPair) {
-    // Store device IDs as an array
     accessory.context.deviceIds = deviceIds;
     accessory.context.name = name;
     accessory.context.isStereoPair = isStereoPair;
+    accessory.context.deviceType = 'homepod';
 
-    // Set up AccessoryInformation service
     const infoService = accessory.getService(this.api.hap.Service.AccessoryInformation);
     if (infoService) {
       infoService
@@ -167,19 +167,15 @@ class HomePodMusicSensorPlatform {
         .setCharacteristic(this.api.hap.Characteristic.FirmwareRevision, require('./package.json').version);
     }
 
-    // Set up MotionSensor service
     const motionService = accessory.getService(this.api.hap.Service.MotionSensor) ||
       accessory.addService(this.api.hap.Service.MotionSensor, name);
 
-    // Clear any existing polling interval to prevent accumulation on re-setup
     if (this.pollIntervals.has(accessory.UUID)) {
       clearInterval(this.pollIntervals.get(accessory.UUID));
     }
 
-    // Initial status check
     this.updateStatus(accessory, motionService);
 
-    // Set up polling
     const updateInterval = Math.max(1, this.config.updateInterval || 5) * 1000;
     this.pollIntervals.set(accessory.UUID, setInterval(() => {
       this.updateStatus(accessory, motionService);
@@ -192,10 +188,8 @@ class HomePodMusicSensorPlatform {
     const isStereoPair = accessory.context.isStereoPair;
 
     if (isStereoPair) {
-      // Check both HomePods in the stereo pair
       this.checkStereoPairStatus(deviceIds, name, motionService);
     } else {
-      // Single HomePod
       this.checkSingleDeviceStatus(deviceIds[0], name, motionService);
     }
   }
@@ -206,7 +200,7 @@ class HomePodMusicSensorPlatform {
     let playingInfo = null;
 
     deviceIds.forEach((deviceId, index) => {
-      exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
+      exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout) => {
         completed++;
 
         if (!error) {
@@ -223,16 +217,11 @@ class HomePodMusicSensorPlatform {
           }
         }
 
-        // When both devices have been checked
         if (completed === deviceIds.length) {
           if (isAnyPlaying && playingInfo) {
-            this.log.debug('%s (Stereo): Now playing — %s%s', name, playingInfo.title, playingInfo.artist ? ' - ' + playingInfo.artist : '');
+            this.log.debug('%s (Stereo): Now playing - %s%s', name, playingInfo.title, playingInfo.artist ? ' - ' + playingInfo.artist : '');
           }
-          
-          motionService.updateCharacteristic(
-            this.api.hap.Characteristic.MotionDetected,
-            isAnyPlaying,
-          );
+          motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, isAnyPlaying);
         }
       });
     });
@@ -246,13 +235,7 @@ class HomePodMusicSensorPlatform {
         } else {
           this.log.debug('Error getting status for %s: %s', name, error.message);
         }
-        if (stderr) {
-          this.log.debug('stderr for %s: %s', name, stderr);
-        }
-        motionService.updateCharacteristic(
-          this.api.hap.Characteristic.MotionDetected,
-          false,
-        );
+        motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, false);
         return;
       }
 
@@ -261,43 +244,29 @@ class HomePodMusicSensorPlatform {
 
         if (data.error) {
           this.log.debug('%s: %s', name, data.error);
-          motionService.updateCharacteristic(
-            this.api.hap.Characteristic.MotionDetected,
-            false,
-          );
+          motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, false);
           return;
         }
 
         const isPlaying = this.shouldDetect(data);
 
         if (isPlaying && data.title) {
-          this.log.debug('%s: Now playing — %s%s', name, data.title, data.artist ? ' - ' + data.artist : '');
+          this.log.debug('%s: Now playing - %s%s', name, data.title, data.artist ? ' - ' + data.artist : '');
         }
 
-        motionService.updateCharacteristic(
-          this.api.hap.Characteristic.MotionDetected,
-          isPlaying,
-        );
+        motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, isPlaying);
       } catch (e) {
         this.log.error('Error parsing response for %s: %s', name, e.message);
-        this.log.debug('Raw stdout for %s: %s', name, stdout);
-        motionService.updateCharacteristic(
-          this.api.hap.Characteristic.MotionDetected,
-          false,
-        );
+        motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, false);
       }
     });
   }
 
   shouldDetect(data) {
-    if (!data || !data.state) {
-      return false;
-    }
+    if (!data || !data.state) return false;
 
     const state = data.state.toLowerCase();
-    if (!state.includes('playing')) {
-      return false;
-    }
+    if (!state.includes('playing')) return false;
 
     const {
       detectMusic = true,
@@ -307,41 +276,273 @@ class HomePodMusicSensorPlatform {
       requireArtist = true,
     } = this.config;
 
-    if (requireArtist && !data.artist) {
-      return false;
-    }
-
-    if (data.total_time && data.total_time > maxDuration) {
-      return false;
-    }
+    if (requireArtist && !data.artist) return false;
+    if (data.total_time && data.total_time > maxDuration) return false;
 
     const mediaType = (data.media_type || '').toLowerCase();
 
-    if (mediaType.includes('music') && detectMusic) {
-      return true;
-    }
-
-    if (mediaType.includes('podcast') && detectPodcasts) {
-      return true;
-    }
-
-    if (mediaType.includes('video') && detectMovies) {
-      return true;
-    }
-
-    // If the media type is explicitly something we checked above, don't fall through
-    if (mediaType.includes('video') || mediaType.includes('podcast')) {
-      return false;
-    }
-
-    // Fallback: if detectMusic is enabled and there's an artist, assume it's music
-    // (handles unknown/unrecognized media types from pyatv)
-    if (detectMusic && data.artist) {
-      return true;
-    }
+    if (mediaType.includes('music') && detectMusic) return true;
+    if (mediaType.includes('podcast') && detectPodcasts) return true;
+    if (mediaType.includes('video') && detectMovies) return true;
+    if (mediaType.includes('video') || mediaType.includes('podcast')) return false;
+    if (detectMusic && data.artist) return true;
 
     return false;
   }
+
+  // ============================================================
+  //  Apple TV Device Discovery (NEW)
+  // ============================================================
+
+  discoverAppleTVDevices() {
+    const appleTVs = this.config.appleTVs || [];
+
+    if (!appleTVs.length) {
+      this.log.debug('No Apple TV devices configured.');
+      return;
+    }
+
+    if (!fs.existsSync(this.appletvScriptPath)) {
+      this.log.error(`Apple TV script not found at: ${this.appletvScriptPath}`);
+      return;
+    }
+
+    const activeUUIDs = new Set();
+
+    for (const atv of appleTVs) {
+      if (!atv.name || !atv.deviceId) {
+        this.log.warn('Skipping Apple TV with missing name or deviceId: %s', JSON.stringify(atv));
+        continue;
+      }
+
+      if (!atv.companionCredentials || !atv.airplayCredentials) {
+        this.log.warn('Apple TV "%s" is missing credentials. Please complete the pairing process.', atv.name);
+        continue;
+      }
+
+      this.log.info('Configuring Apple TV: %s', atv.name);
+
+      if (atv.enablePowerSensor !== false) {
+        const powerUUID = this.api.hap.uuid.generate(`appletv-power-${atv.deviceId}`);
+        activeUUIDs.add(powerUUID);
+        this.createAppleTVAccessory(atv, 'power', powerUUID);
+      }
+
+      if (atv.enablePlaybackSensor !== false) {
+        const playbackUUID = this.api.hap.uuid.generate(`appletv-playback-${atv.deviceId}`);
+        activeUUIDs.add(playbackUUID);
+        this.createAppleTVAccessory(atv, 'playback', playbackUUID);
+      }
+
+      const apps = atv.apps || [];
+      for (const app of apps) {
+        if (!app.appId) {
+          this.log.warn('Skipping app sensor with missing appId for Apple TV "%s"', atv.name);
+          continue;
+        }
+        const appUUID = this.api.hap.uuid.generate(`appletv-app-${atv.deviceId}-${app.appId}`);
+        activeUUIDs.add(appUUID);
+        this.createAppleTVAppAccessory(atv, app, appUUID);
+      }
+    }
+
+    const staleAccessories = this.accessories.filter(acc =>
+      !activeUUIDs.has(acc.UUID) &&
+      acc.context.deviceType === 'appletv'
+    );
+    if (staleAccessories.length > 0) {
+      this.log.info('Removing %d stale cached Apple TV accessory(ies)', staleAccessories.length);
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, staleAccessories);
+      this.accessories = this.accessories.filter(acc => !staleAccessories.includes(acc));
+    }
+  }
+
+  createAppleTVAccessory(atv, sensorType, uuid) {
+    const sensorName = sensorType === 'power'
+      ? `${atv.name} Power`
+      : `${atv.name} Playback`;
+
+    const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
+
+    if (existingAccessory) {
+      this.log.info('Reusing cached Apple TV accessory: %s', sensorName);
+      this.setupAppleTVAccessory(existingAccessory, atv, sensorType, sensorName);
+    } else {
+      this.log.info('Creating new Apple TV accessory: %s', sensorName);
+      const accessory = new this.api.platformAccessory(sensorName, uuid);
+      accessory.context.deviceType = 'appletv';
+      this.setupAppleTVAccessory(accessory, atv, sensorType, sensorName);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.accessories.push(accessory);
+    }
+  }
+
+  createAppleTVAppAccessory(atv, app, uuid) {
+    const sensorName = `${atv.name} ${app.name || app.appId}`;
+    const existingAccessory = this.accessories.find(acc => acc.UUID === uuid);
+
+    if (existingAccessory) {
+      this.log.info('Reusing cached Apple TV app accessory: %s', sensorName);
+      this.setupAppleTVAppAccessory(existingAccessory, atv, app, sensorName);
+    } else {
+      this.log.info('Creating new Apple TV app accessory: %s', sensorName);
+      const accessory = new this.api.platformAccessory(sensorName, uuid);
+      accessory.context.deviceType = 'appletv';
+      this.setupAppleTVAppAccessory(accessory, atv, app, sensorName);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.accessories.push(accessory);
+    }
+  }
+
+  setupAppleTVAccessory(accessory, atv, sensorType, sensorName) {
+    accessory.context.deviceType = 'appletv';
+    accessory.context.sensorType = sensorType;
+    accessory.context.atvConfig = {
+      deviceId: atv.deviceId,
+      companionCredentials: atv.companionCredentials,
+      airplayCredentials: atv.airplayCredentials,
+    };
+
+    const infoService = accessory.getService(this.api.hap.Service.AccessoryInformation);
+    if (infoService) {
+      infoService
+        .setCharacteristic(this.api.hap.Characteristic.Manufacturer, 'Apple Inc.')
+        .setCharacteristic(this.api.hap.Characteristic.Model, 'Apple TV')
+        .setCharacteristic(this.api.hap.Characteristic.SerialNumber, atv.deviceId)
+        .setCharacteristic(this.api.hap.Characteristic.FirmwareRevision, require('./package.json').version);
+    }
+
+    let service;
+    if (sensorType === 'power') {
+      service = accessory.getService(this.api.hap.Service.OccupancySensor) ||
+        accessory.addService(this.api.hap.Service.OccupancySensor, sensorName);
+    } else {
+      service = accessory.getService(this.api.hap.Service.MotionSensor) ||
+        accessory.addService(this.api.hap.Service.MotionSensor, sensorName);
+    }
+
+    const pollKey = `atv-${sensorType}-${atv.deviceId}`;
+    if (this.pollIntervals.has(pollKey)) {
+      clearInterval(this.pollIntervals.get(pollKey));
+    }
+
+    this.updateAppleTVStatus(accessory, service, sensorType);
+
+    const updateInterval = Math.max(1, this.config.updateInterval || 5) * 1000;
+    this.pollIntervals.set(pollKey, setInterval(() => {
+      this.updateAppleTVStatus(accessory, service, sensorType);
+    }, updateInterval));
+  }
+
+  setupAppleTVAppAccessory(accessory, atv, app, sensorName) {
+    accessory.context.deviceType = 'appletv';
+    accessory.context.sensorType = 'app';
+    accessory.context.appId = app.appId;
+    accessory.context.appName = app.name || app.appId;
+    accessory.context.detectPlayingOnly = app.detectPlayingOnly !== false;
+    accessory.context.atvConfig = {
+      deviceId: atv.deviceId,
+      companionCredentials: atv.companionCredentials,
+      airplayCredentials: atv.airplayCredentials,
+    };
+
+    const infoService = accessory.getService(this.api.hap.Service.AccessoryInformation);
+    if (infoService) {
+      infoService
+        .setCharacteristic(this.api.hap.Characteristic.Manufacturer, 'Apple Inc.')
+        .setCharacteristic(this.api.hap.Characteristic.Model, `Apple TV - ${app.name || app.appId}`)
+        .setCharacteristic(this.api.hap.Characteristic.SerialNumber, `${atv.deviceId}-${app.appId}`)
+        .setCharacteristic(this.api.hap.Characteristic.FirmwareRevision, require('./package.json').version);
+    }
+
+    const service = accessory.getService(this.api.hap.Service.MotionSensor) ||
+      accessory.addService(this.api.hap.Service.MotionSensor, sensorName);
+
+    const pollKey = `atv-app-${atv.deviceId}-${app.appId}`;
+    if (this.pollIntervals.has(pollKey)) {
+      clearInterval(this.pollIntervals.get(pollKey));
+    }
+
+    this.updateAppleTVStatus(accessory, service, 'app');
+
+    const updateInterval = Math.max(1, this.config.updateInterval || 5) * 1000;
+    this.pollIntervals.set(pollKey, setInterval(() => {
+      this.updateAppleTVStatus(accessory, service, 'app');
+    }, updateInterval));
+  }
+
+  updateAppleTVStatus(accessory, service, sensorType) {
+    const config = accessory.context.atvConfig;
+    if (!config) return;
+
+    const cmd = `python3 "${this.appletvScriptPath}" "${config.deviceId}" "${config.companionCredentials}" "${config.airplayCredentials}"`;
+
+    exec(cmd, { timeout: 15000 }, (error, stdout) => {
+      if (error) {
+        if (error.killed) {
+          this.log.warn('Timeout getting Apple TV status for %s', accessory.displayName);
+        } else {
+          this.log.debug('Error getting Apple TV status for %s: %s', accessory.displayName, error.message);
+        }
+        this.setAppleTVSensorState(service, sensorType, false);
+        return;
+      }
+
+      try {
+        const data = JSON.parse(stdout.trim());
+
+        if (data.error) {
+          this.log.debug('Apple TV %s: %s', accessory.displayName, data.error);
+          this.setAppleTVSensorState(service, sensorType, false);
+          return;
+        }
+
+        let isActive = false;
+
+        if (sensorType === 'power') {
+          isActive = data.power === 'on';
+          this.log.debug('Apple TV %s: Power = %s', accessory.displayName, data.power);
+        } else if (sensorType === 'playback') {
+          isActive = data.state === 'playing';
+          if (isActive && data.title) {
+            this.log.debug('Apple TV %s: Playing - %s%s', accessory.displayName, data.title, data.artist ? ' - ' + data.artist : '');
+          }
+        } else if (sensorType === 'app') {
+          const targetAppId = accessory.context.appId;
+          const detectPlayingOnly = accessory.context.detectPlayingOnly;
+          const currentAppId = data.app_id;
+
+          if (detectPlayingOnly) {
+            isActive = currentAppId === targetAppId && data.state === 'playing';
+          } else {
+            isActive = currentAppId === targetAppId;
+          }
+
+          if (isActive) {
+            this.log.debug('Apple TV %s: %s is active%s', accessory.displayName,
+              data.app_name || targetAppId, data.title ? ' - ' + data.title : '');
+          }
+        }
+
+        this.setAppleTVSensorState(service, sensorType, isActive);
+      } catch (e) {
+        this.log.error('Error parsing Apple TV response for %s: %s', accessory.displayName, e.message);
+        this.setAppleTVSensorState(service, sensorType, false);
+      }
+    });
+  }
+
+  setAppleTVSensorState(service, sensorType, isActive) {
+    if (sensorType === 'power') {
+      service.updateCharacteristic(this.api.hap.Characteristic.OccupancyDetected, isActive ? 1 : 0);
+    } else {
+      service.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, isActive);
+    }
+  }
+
+  // ============================================================
+  //  Accessory Cache
+  // ============================================================
 
   configureAccessory(accessory) {
     this.log.debug('Loading accessory from cache: %s', accessory.displayName);
