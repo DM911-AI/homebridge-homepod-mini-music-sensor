@@ -46,22 +46,31 @@ class HomePodMusicSensorPlatform {
       return;
     }
 
-    exec('python3 --version', { timeout: 5000 }, (error, stdout) => {
-      if (error) {
-        this.log.error('Python 3 is not installed or not in PATH.');
-        this.log.error('Install Python 3 and pyatv: brew install python3 && pip3 install pyatv');
+    const pythonCandidates = ['python3', 'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10', 'python3.9'];
+
+    const tryPython = (index) => {
+      if (index >= pythonCandidates.length) {
+        this.log.error('No compatible Python 3 with pyatv found. Install with: brew install python3 && pip3 install pyatv');
         return;
       }
-      this.log.info(`Python detected: ${stdout.trim()}`);
 
-      exec('python3 -c "import pyatv"', { timeout: 5000 }, (error) => {
-        if (error) {
-          this.log.error('pyatv library is not installed. Install it with: pip3 install pyatv');
-        } else {
-          this.log.debug('pyatv library detected');
+      const pythonCmd = pythonCandidates[index];
+      exec(`${pythonCmd} -c "import pyatv; print('ok')"`, { timeout: 10000 }, (error, stdout) => {
+        if (error || !stdout.includes('ok')) {
+          tryPython(index + 1);
+          return;
         }
+
+        this.pythonPath = pythonCmd;
+        this.log.info(`Python with pyatv detected: ${pythonCmd}`);
+
+        exec(`${pythonCmd} --version`, { timeout: 5000 }, (err, ver) => {
+          if (!err) this.log.info(`Python version: ${ver.trim()}`);
+        });
       });
-    });
+    };
+
+    tryPython(0);
   }
 
   // ============================================================
@@ -200,7 +209,7 @@ class HomePodMusicSensorPlatform {
     let playingInfo = null;
 
     deviceIds.forEach((deviceId, index) => {
-      exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout) => {
+      exec(`${this.pythonPath || 'python3'} "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout) => {
         completed++;
 
         if (!error) {
@@ -228,7 +237,7 @@ class HomePodMusicSensorPlatform {
   }
 
   checkSingleDeviceStatus(deviceId, name, motionService) {
-    exec(`python3 "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
+    exec(`${this.pythonPath || 'python3'} "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
           this.log.warn('Timeout getting status for %s', name);
@@ -276,16 +285,27 @@ class HomePodMusicSensorPlatform {
       requireArtist = true,
     } = this.config;
 
-    if (requireArtist && !data.artist) return false;
     if (data.total_time && data.total_time > maxDuration) return false;
 
     const mediaType = (data.media_type || '').toLowerCase();
 
-    if (mediaType.includes('music') && detectMusic) return true;
+    // Explicit media type matches
+    if (mediaType.includes('music') && detectMusic) {
+      return !(requireArtist && !data.artist);
+    }
     if (mediaType.includes('podcast') && detectPodcasts) return true;
     if (mediaType.includes('video') && detectMovies) return true;
+
+    // Block known non-matching types
     if (mediaType.includes('video') || mediaType.includes('podcast')) return false;
-    if (detectMusic && data.artist) return true;
+    if (mediaType.includes('music')) return false;
+
+    // Unknown media type - use best guess based on available metadata
+    if (detectMovies && data.title && !data.artist) return true;
+    if (detectMusic && data.artist) {
+      return !(requireArtist && !data.artist);
+    }
+    if (detectMovies && data.title) return true;
 
     return false;
   }
