@@ -285,12 +285,12 @@ class HomePodMusicSensorPlatform {
       requireArtist = true,
     } = this.config;
 
-    if (data.total_time && data.total_time > maxDuration) return false;
-
     const mediaType = (data.media_type || '').toLowerCase();
 
     // Explicit media type matches
+    // Note: maxDuration applies only to music, not to movies/podcasts
     if (mediaType.includes('music') && detectMusic) {
+      if (data.total_time && data.total_time > maxDuration) return false;
       return !(requireArtist && !data.artist);
     }
     if (mediaType.includes('podcast') && detectPodcasts) return true;
@@ -303,6 +303,7 @@ class HomePodMusicSensorPlatform {
     // Unknown media type - use best guess based on available metadata
     if (detectMovies && data.title && !data.artist) return true;
     if (detectMusic && data.artist) {
+      if (data.total_time && data.total_time > maxDuration) return false;
       return !(requireArtist && !data.artist);
     }
     if (detectMovies && data.title) return true;
@@ -495,7 +496,7 @@ class HomePodMusicSensorPlatform {
     const config = accessory.context.atvConfig;
     if (!config) return;
 
-    const cmd = `python3 "${this.appletvScriptPath}" "${config.deviceId}" "${config.companionCredentials}" "${config.airplayCredentials}"`;
+    const cmd = `${this.pythonPath || 'python3'} "${this.appletvScriptPath}" "${config.deviceId}" "${config.companionCredentials}" "${config.airplayCredentials}"`;
 
     exec(cmd, { timeout: 15000 }, (error, stdout) => {
       if (error) {
