@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.6] - 2026-07-15
+
+### Fixed
+- Added an optional `pythonPath` setting for pipx and virtual-environment installations.
+- Wait for Python and pyatv detection before starting device polling.
+- Run Python scripts without a shell to prevent command injection.
+- Pass Apple TV credentials over stdin and avoid copying them into the Homebridge accessory cache.
+- Prevent overlapping HomePod and Apple TV polling operations.
+
+### Added
+- Initial automated tests for Python discovery and media detection.
+- Shared each Apple TV status request across its power, playback, and app sensors.
+- Added CI checks for Node.js 20, 22, and 24.
+
 ## [1.4.6] - 2026-02-09
 
 ### 🎉 Added

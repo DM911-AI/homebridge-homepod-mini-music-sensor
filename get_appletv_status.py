@@ -61,11 +61,18 @@ async def get_status(device_id, companion_creds, airplay_creds):
 
 def main():
     if len(sys.argv) < 2:
-        print(json.dumps({"error": "Usage: get_appletv_status.py <device_id> [companion_creds] [airplay_creds]"}))
+        print(json.dumps({"error": "Usage: get_appletv_status.py <device_id>"}))
         sys.exit(0)
     device_id = sys.argv[1]
-    companion_creds = sys.argv[2] if len(sys.argv) > 2 else None
-    airplay_creds = sys.argv[3] if len(sys.argv) > 3 else None
+    credentials = {}
+    if not sys.stdin.isatty():
+        try:
+            credentials = json.loads(sys.stdin.read() or "{}")
+        except json.JSONDecodeError:
+            print(json.dumps({"error": "Invalid credentials payload"}))
+            sys.exit(0)
+    companion_creds = credentials.get("companionCredentials")
+    airplay_creds = credentials.get("airplayCredentials")
     result = asyncio.run(get_status(device_id, companion_creds, airplay_creds))
     print(json.dumps(result))
 

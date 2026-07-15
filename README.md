@@ -1,6 +1,6 @@
 # 🎵 homebridge-homepod-mini-music-sensor
 
-**Transform your HomePod mini into a smart music sensor for HomeKit**
+**Transform your HomePod and Apple TV into smart sensors for HomeKit**
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg" alt="HomePod" width="600">
@@ -32,7 +32,7 @@
 
 ## 🎯 Overview
 
-This Homebridge plugin turns your HomePod mini (or HomePod) into a smart music sensor for HomeKit. It appears as a **motion sensor** that detects when music is playing, enabling powerful home automations based on your listening habits.
+This Homebridge plugin turns your HomePod into a music sensor and your Apple TV into power, playback, and per-app sensors for HomeKit.
 
 **Why use this plugin?**
 
@@ -51,6 +51,7 @@ This Homebridge plugin turns your HomePod mini (or HomePod) into a smart music s
 - 🎵 **Smart Music Detection** - Detects when music is actively playing
 - 📱 **HomeKit Motion Sensor** - Appears as a standard motion sensor in Home app
 - 🏠 **Multi-HomePod Support** - Create separate sensors for each HomePod
+- 📺 **Apple TV Support** - Power, playback, and per-app sensors
 - 🚫 **No Authentication Required** - Works with HomePod mini without pairing
 - ⚡ **Fast Updates** - Configurable update interval (1-60 seconds)
 
@@ -85,6 +86,14 @@ pip3 install pyatv
 # Verify installation
 python3 -m pyatv --version
 ```
+
+On Debian and Raspberry Pi OS, use pipx when the system Python is externally managed:
+```bash
+sudo apt install pipx
+pipx install pyatv
+```
+
+If Homebridge does not detect it automatically, set **Python Executable Path** in the plugin settings to the `python` executable inside the pyatv pipx/virtualenv environment. Make sure that path is accessible to the user running Homebridge.
 
 ### Plugin Installation
 
@@ -390,19 +399,26 @@ If you're still experiencing issues:
 - ✅ **HomePod mini** (all colors)
 - ✅ **HomePod** (1st generation - discontinued)
 - ✅ **HomePod** (2nd generation - 2023)
+- ✅ **Apple TV** models supported by pyatv
 
 ### Requirements
 
-- **Network:** HomePods must be on same local network as Homebridge
+- **Network:** Devices must be on the same local network as Homebridge
 - **tvOS:** Any version supported by pyatv
-- **No authentication required** - Works without pairing
+- **HomePod:** No authentication required
+- **Apple TV:** Companion and AirPlay pairing credentials are required
 
-### Not Supported (Yet)
+### Apple TV Pairing
 
-- ❌ **Apple TV** - Requires authentication/pairing
-  - Coming in future update
-  - More complex setup needed
-  - [Vote for this feature](https://github.com/DM911-AI/homebridge-homepod-mini-music-sensor/issues) if interested!
+Find the Apple TV identifier, then pair both required protocols:
+
+```bash
+atvremote scan
+atvremote --id YOUR_APPLE_TV_ID --protocol companion pair
+atvremote --id YOUR_APPLE_TV_ID --protocol airplay pair
+```
+
+Enter the credentials printed by each pairing command in the matching plugin setting. See the [official pyatv pairing documentation](https://pyatv.dev/documentation/atvremote/) for additional details. Treat these values as passwords.
 
 ---
 
@@ -410,10 +426,8 @@ If you're still experiencing issues:
 
 ### Planned Features
 
-- [ ] **Apple TV Support**
-  - Add authentication/pairing support
-  - Enable same features for Apple TV
-  - Expected: Version 2.0
+- [x] **Apple TV Support**
+  - Power, playback, and per-app sensors
 
 - [ ] **Song Metadata Display**
   - Show current song in Eve app

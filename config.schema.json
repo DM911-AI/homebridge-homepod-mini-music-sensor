@@ -2,7 +2,7 @@
   "pluginAlias": "HomePodMusicSensor",
   "pluginType": "platform",
   "singular": true,
-  "headerDisplay": "<p align='center'><img width='250px' src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg'></p>\nTransform your HomePod mini and Apple TV into smart sensors for HomeKit.\n\n**New in v1.6.0:** Apple TV Support! Power, Playback, and per-App sensors.",
+  "headerDisplay": "<p align='center'><img width='250px' src='https://raw.githubusercontent.com/DM911-AI/homebridge-homepod-mini-music-sensor/main/assets/HomePod_2.jpg'></p>\nTransform your HomePod mini and Apple TV into smart sensors for HomeKit.\n\n**New in v1.5.6:** Better pipx/virtualenv support and safer credential handling.",
   "schema": {
     "type": "object",
     "required": [
@@ -13,6 +13,11 @@
         "title": "Platform Name",
         "type": "string",
         "default": "HomePod Music Sensor"
+      },
+      "pythonPath": {
+        "title": "Python Executable Path",
+        "type": "string",
+        "description": "Optional full path to the Python executable that has pyatv installed. Useful for pipx and virtual environments."
       },
       "detectMusic": {
         "title": "Detect Music",
@@ -173,7 +178,8 @@
         "detectMovies",
         "maxDuration",
         "requireArtist",
-        "updateInterval"
+        "updateInterval",
+        "pythonPath"
       ]
     },
     {
