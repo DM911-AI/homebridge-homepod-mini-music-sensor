@@ -1,6 +1,7 @@
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 const PLUGIN_NAME = 'homebridge-homepod-mini-music-sensor';
 const PLATFORM_NAME = 'HomePodMusicSensor';
@@ -14,8 +15,11 @@ class HomePodMusicSensorPlatform {
     this.log = log;
     this.config = config || {};
     this.api = api;
+    this.execFile = execFile;
     this.accessories = [];
     this.pollIntervals = new Map();
+    this.pollInFlight = new Set();
+    this.appleTVPollers = new Map();
     this.scriptPath = path.join(__dirname, 'get_nowplaying.py');
     this.appletvScriptPath = path.join(__dirname, 'get_appletv_status.py');
 
@@ -24,9 +28,12 @@ class HomePodMusicSensorPlatform {
       return;
     }
 
-    this.api.on('didFinishLaunching', () => {
+    this.api.on('didFinishLaunching', async () => {
       this.log.debug('didFinishLaunching');
-      this.checkPythonEnvironment();
+      const pythonReady = await this.checkPythonEnvironment();
+      if (!pythonReady) {
+        return;
+      }
       this.discoverDevices();
       this.discoverAppleTVDevices();
     });
@@ -40,37 +47,53 @@ class HomePodMusicSensorPlatform {
     });
   }
 
-  checkPythonEnvironment() {
+  async checkPythonEnvironment() {
     if (!fs.existsSync(this.scriptPath)) {
       this.log.error(`Python script not found at: ${this.scriptPath}`);
-      return;
+      return false;
     }
 
-    const pythonCandidates = ['python3', 'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10', 'python3.9'];
+    const pipxPythons = [
+      path.join(os.homedir(), '.local', 'share', 'pipx', 'venvs', 'pyatv', 'bin', 'python'),
+      path.join(os.homedir(), '.local', 'pipx', 'venvs', 'pyatv', 'bin', 'python'),
+    ];
+    const pythonCandidates = [
+      this.config.pythonPath,
+      process.env.PYATV_PYTHON,
+      process.env.VIRTUAL_ENV && path.join(process.env.VIRTUAL_ENV, 'bin', 'python'),
+      ...pipxPythons,
+      'python3',
+      'python3.14',
+      'python3.13',
+      'python3.12',
+      'python3.11',
+      'python3.10',
+      'python3.9',
+    ].filter((candidate, index, candidates) => candidate && candidates.indexOf(candidate) === index);
 
-    const tryPython = (index) => {
-      if (index >= pythonCandidates.length) {
-        this.log.error('No compatible Python 3 with pyatv found. Install with: brew install python3 && pip3 install pyatv');
-        return;
-      }
+    for (const pythonCmd of pythonCandidates) {
+      const available = await this.canImportPyatv(pythonCmd);
+      if (!available) continue;
 
-      const pythonCmd = pythonCandidates[index];
-      exec(`${pythonCmd} -c "import pyatv; print('ok')"`, { timeout: 10000 }, (error, stdout) => {
-        if (error || !stdout.includes('ok')) {
-          tryPython(index + 1);
-          return;
-        }
-
-        this.pythonPath = pythonCmd;
-        this.log.info(`Python with pyatv detected: ${pythonCmd}`);
-
-        exec(`${pythonCmd} --version`, { timeout: 5000 }, (err, ver) => {
-          if (!err) this.log.info(`Python version: ${ver.trim()}`);
-        });
+      this.pythonPath = pythonCmd;
+      this.log.info(`Python with pyatv detected: ${pythonCmd}`);
+      this.execFile(pythonCmd, ['--version'], { timeout: 5000 }, (error, stdout, stderr) => {
+        const version = (stdout || stderr || '').trim();
+        if (!error && version) this.log.info(`Python version: ${version}`);
       });
-    };
+      return true;
+    }
 
-    tryPython(0);
+    this.log.error('No compatible Python 3 with pyatv found. Set "pythonPath" in the plugin settings to the Python executable that has pyatv installed (including pipx/virtualenv paths).');
+    return false;
+  }
+
+  canImportPyatv(pythonCmd) {
+    return new Promise((resolve) => {
+      this.execFile(pythonCmd, ['-c', "import pyatv; print('ok')"], { timeout: 10000 }, (error, stdout) => {
+        resolve(!error && stdout.includes('ok'));
+      });
+    });
   }
 
   // ============================================================
@@ -192,24 +215,31 @@ class HomePodMusicSensorPlatform {
   }
 
   updateStatus(accessory, motionService) {
+    if (this.pollInFlight.has(accessory.UUID)) {
+      this.log.debug('Skipping overlapping status check for %s', accessory.displayName);
+      return;
+    }
+    this.pollInFlight.add(accessory.UUID);
+
     const deviceIds = accessory.context.deviceIds;
     const name = accessory.context.name;
     const isStereoPair = accessory.context.isStereoPair;
+    const done = () => this.pollInFlight.delete(accessory.UUID);
 
     if (isStereoPair) {
-      this.checkStereoPairStatus(deviceIds, name, motionService);
+      this.checkStereoPairStatus(deviceIds, name, motionService, done);
     } else {
-      this.checkSingleDeviceStatus(deviceIds[0], name, motionService);
+      this.checkSingleDeviceStatus(deviceIds[0], name, motionService, done);
     }
   }
 
-  checkStereoPairStatus(deviceIds, name, motionService) {
+  checkStereoPairStatus(deviceIds, name, motionService, done = () => {}) {
     let completed = 0;
     let isAnyPlaying = false;
     let playingInfo = null;
 
     deviceIds.forEach((deviceId, index) => {
-      exec(`${this.pythonPath || 'python3'} "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout) => {
+      this.execFile(this.pythonPath || 'python3', [this.scriptPath, deviceId], { timeout: 15000 }, (error, stdout) => {
         completed++;
 
         if (!error) {
@@ -231,24 +261,25 @@ class HomePodMusicSensorPlatform {
             this.log.debug('%s (Stereo): Now playing - %s%s', name, playingInfo.title, playingInfo.artist ? ' - ' + playingInfo.artist : '');
           }
           motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, isAnyPlaying);
+          done();
         }
       });
     });
   }
 
-  checkSingleDeviceStatus(deviceId, name, motionService) {
-    exec(`${this.pythonPath || 'python3'} "${this.scriptPath}" "${deviceId}"`, { timeout: 15000 }, (error, stdout, stderr) => {
-      if (error) {
-        if (error.killed) {
-          this.log.warn('Timeout getting status for %s', name);
-        } else {
-          this.log.debug('Error getting status for %s: %s', name, error.message);
-        }
-        motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, false);
-        return;
-      }
-
+  checkSingleDeviceStatus(deviceId, name, motionService, done = () => {}) {
+    this.execFile(this.pythonPath || 'python3', [this.scriptPath, deviceId], { timeout: 15000 }, (error, stdout, stderr) => {
       try {
+        if (error) {
+          if (error.killed) {
+            this.log.warn('Timeout getting status for %s', name);
+          } else {
+            this.log.debug('Error getting status for %s: %s', name, error.message);
+          }
+          motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, false);
+          return;
+        }
+
         const data = JSON.parse(stdout.trim());
 
         if (data.error) {
@@ -267,6 +298,8 @@ class HomePodMusicSensorPlatform {
       } catch (e) {
         this.log.error('Error parsing response for %s: %s', name, e.message);
         motionService.updateCharacteristic(this.api.hap.Characteristic.MotionDetected, false);
+      } finally {
+        done();
       }
     });
   }
@@ -420,8 +453,6 @@ class HomePodMusicSensorPlatform {
     accessory.context.sensorType = sensorType;
     accessory.context.atvConfig = {
       deviceId: atv.deviceId,
-      companionCredentials: atv.companionCredentials,
-      airplayCredentials: atv.airplayCredentials,
     };
 
     const infoService = accessory.getService(this.api.hap.Service.AccessoryInformation);
@@ -442,17 +473,7 @@ class HomePodMusicSensorPlatform {
         accessory.addService(this.api.hap.Service.MotionSensor, sensorName);
     }
 
-    const pollKey = `atv-${sensorType}-${atv.deviceId}`;
-    if (this.pollIntervals.has(pollKey)) {
-      clearInterval(this.pollIntervals.get(pollKey));
-    }
-
-    this.updateAppleTVStatus(accessory, service, sensorType);
-
-    const updateInterval = Math.max(1, this.config.updateInterval || 5) * 1000;
-    this.pollIntervals.set(pollKey, setInterval(() => {
-      this.updateAppleTVStatus(accessory, service, sensorType);
-    }, updateInterval));
+    this.registerAppleTVTarget(atv.deviceId, accessory, service, sensorType);
   }
 
   setupAppleTVAppAccessory(accessory, atv, app, sensorName) {
@@ -463,8 +484,6 @@ class HomePodMusicSensorPlatform {
     accessory.context.detectPlayingOnly = app.detectPlayingOnly !== false;
     accessory.context.atvConfig = {
       deviceId: atv.deviceId,
-      companionCredentials: atv.companionCredentials,
-      airplayCredentials: atv.airplayCredentials,
     };
 
     const infoService = accessory.getService(this.api.hap.Service.AccessoryInformation);
@@ -479,78 +498,98 @@ class HomePodMusicSensorPlatform {
     const service = accessory.getService(this.api.hap.Service.MotionSensor) ||
       accessory.addService(this.api.hap.Service.MotionSensor, sensorName);
 
-    const pollKey = `atv-app-${atv.deviceId}-${app.appId}`;
-    if (this.pollIntervals.has(pollKey)) {
-      clearInterval(this.pollIntervals.get(pollKey));
-    }
-
-    this.updateAppleTVStatus(accessory, service, 'app');
-
-    const updateInterval = Math.max(1, this.config.updateInterval || 5) * 1000;
-    this.pollIntervals.set(pollKey, setInterval(() => {
-      this.updateAppleTVStatus(accessory, service, 'app');
-    }, updateInterval));
+    this.registerAppleTVTarget(atv.deviceId, accessory, service, 'app');
   }
 
-  updateAppleTVStatus(accessory, service, sensorType) {
-    const config = accessory.context.atvConfig;
-    if (!config) return;
+  registerAppleTVTarget(deviceId, accessory, service, sensorType) {
+    let poller = this.appleTVPollers.get(deviceId);
+    if (!poller) {
+      poller = { targets: new Map() };
+      this.appleTVPollers.set(deviceId, poller);
 
-    const cmd = `${this.pythonPath || 'python3'} "${this.appletvScriptPath}" "${config.deviceId}" "${config.companionCredentials}" "${config.airplayCredentials}"`;
+      const pollKey = `atv-device-${deviceId}`;
+      const updateInterval = Math.max(1, this.config.updateInterval || 5) * 1000;
+      this.pollIntervals.set(pollKey, setInterval(() => this.pollAppleTVDevice(deviceId), updateInterval));
 
-    exec(cmd, { timeout: 15000 }, (error, stdout) => {
-      if (error) {
-        if (error.killed) {
-          this.log.warn('Timeout getting Apple TV status for %s', accessory.displayName);
-        } else {
-          this.log.debug('Error getting Apple TV status for %s: %s', accessory.displayName, error.message);
-        }
-        this.setAppleTVSensorState(service, sensorType, false);
-        return;
-      }
+      // Registration is synchronous; defer the first poll so all sensors share its result.
+      setImmediate(() => this.pollAppleTVDevice(deviceId));
+    }
 
+    poller.targets.set(accessory.UUID, { accessory, service, sensorType });
+  }
+
+  pollAppleTVDevice(deviceId) {
+    const inFlightKey = `appletv-${deviceId}`;
+    if (this.pollInFlight.has(inFlightKey)) {
+      this.log.debug('Skipping overlapping Apple TV status check for %s', deviceId);
+      return;
+    }
+
+    const poller = this.appleTVPollers.get(deviceId);
+    const currentConfig = (this.config.appleTVs || []).find(atv => atv.deviceId === deviceId);
+    if (!poller || !currentConfig) return;
+    this.pollInFlight.add(inFlightKey);
+
+    const child = this.execFile(this.pythonPath || 'python3', [this.appletvScriptPath, deviceId], { timeout: 15000 }, (error, stdout) => {
       try {
-        const data = JSON.parse(stdout.trim());
-
-        if (data.error) {
-          this.log.debug('Apple TV %s: %s', accessory.displayName, data.error);
-          this.setAppleTVSensorState(service, sensorType, false);
+        if (error) {
+          if (error.killed) {
+            this.log.warn('Timeout getting Apple TV status for %s', currentConfig.name);
+          } else {
+            this.log.debug('Error getting Apple TV status for %s: %s', currentConfig.name, error.message);
+          }
+          this.updateAppleTVTargets(poller, null);
           return;
         }
 
-        let isActive = false;
-
-        if (sensorType === 'power') {
-          isActive = data.power === 'on';
-          this.log.debug('Apple TV %s: Power = %s', accessory.displayName, data.power);
-        } else if (sensorType === 'playback') {
-          isActive = data.state === 'playing';
-          if (isActive && data.title) {
-            this.log.debug('Apple TV %s: Playing - %s%s', accessory.displayName, data.title, data.artist ? ' - ' + data.artist : '');
-          }
-        } else if (sensorType === 'app') {
-          const targetAppId = accessory.context.appId;
-          const detectPlayingOnly = accessory.context.detectPlayingOnly;
-          const currentAppId = data.app_id;
-
-          if (detectPlayingOnly) {
-            isActive = currentAppId === targetAppId && data.state === 'playing';
-          } else {
-            isActive = currentAppId === targetAppId;
-          }
-
-          if (isActive) {
-            this.log.debug('Apple TV %s: %s is active%s', accessory.displayName,
-              data.app_name || targetAppId, data.title ? ' - ' + data.title : '');
-          }
+        const data = JSON.parse(stdout.trim());
+        if (data.error) {
+          this.log.debug('Apple TV %s: %s', currentConfig.name, data.error);
+          this.updateAppleTVTargets(poller, null);
+          return;
         }
 
-        this.setAppleTVSensorState(service, sensorType, isActive);
+        this.updateAppleTVTargets(poller, data);
       } catch (e) {
-        this.log.error('Error parsing Apple TV response for %s: %s', accessory.displayName, e.message);
-        this.setAppleTVSensorState(service, sensorType, false);
+        this.log.error('Error parsing Apple TV response for %s: %s', currentConfig.name, e.message);
+        this.updateAppleTVTargets(poller, null);
+      } finally {
+        this.pollInFlight.delete(inFlightKey);
       }
     });
+    child.stdin.end(JSON.stringify({
+      companionCredentials: currentConfig.companionCredentials,
+      airplayCredentials: currentConfig.airplayCredentials,
+    }));
+  }
+
+  updateAppleTVTargets(poller, data) {
+    for (const { accessory, service, sensorType } of poller.targets.values()) {
+      let isActive = false;
+
+      if (data && sensorType === 'power') {
+        isActive = data.power === 'on';
+        this.log.debug('Apple TV %s: Power = %s', accessory.displayName, data.power);
+      } else if (data && sensorType === 'playback') {
+        isActive = data.state === 'playing';
+        if (isActive && data.title) {
+          this.log.debug('Apple TV %s: Playing - %s%s', accessory.displayName, data.title, data.artist ? ' - ' + data.artist : '');
+        }
+      } else if (data && sensorType === 'app') {
+        const targetAppId = accessory.context.appId;
+        const currentAppId = data.app_id;
+        isActive = accessory.context.detectPlayingOnly
+          ? currentAppId === targetAppId && data.state === 'playing'
+          : currentAppId === targetAppId;
+
+        if (isActive) {
+          this.log.debug('Apple TV %s: %s is active%s', accessory.displayName,
+            data.app_name || targetAppId, data.title ? ' - ' + data.title : '');
+        }
+      }
+
+      this.setAppleTVSensorState(service, sensorType, isActive);
+    }
   }
 
   setAppleTVSensorState(service, sensorType, isActive) {
@@ -570,3 +609,6 @@ class HomePodMusicSensorPlatform {
     this.accessories.push(accessory);
   }
 }
+
+// Exported for unit testing without changing Homebridge's plugin entrypoint.
+module.exports.HomePodMusicSensorPlatform = HomePodMusicSensorPlatform;
